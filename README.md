@@ -1,1 +1,3 @@
-We are still discussing about what topic to choose, we will update soon
+## Revenue Forecast & Sales Performance Dashboard
+
+This project is a web-based dashboard and revenue forecasting tool for retail sales data, built as the term project for a Web Programming course. It analyzes historical order data across product categories and regions to surface trends in sales, profit, and the impact of discounting, and includes a machine learning module that forecasts revenue for a selected category and region in the upcoming period. The system uses a FastAPI + PostgreSQL (SQLModel) backend and a vanilla HTML/CSS/JavaScript frontend, with a Random Forest/XGBoost regression model trained on the public Superstore Sales dataset.
