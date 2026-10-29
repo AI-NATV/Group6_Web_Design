@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base" content="auto">
+  <title>Data · Revenue Analytics</title>
+  <link rel="stylesheet" href="css/style.css?v=language-1">
+</head>
+<body data-page-title="page.data">
+  <header class="app-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span>Revenue</span> Analytics</a>
+      <nav class="main-nav" aria-label="Primary navigation" data-i18n-aria-label="nav.primary">
+        <a href="index.html" data-page="data" data-i18n="nav.data">Data</a>
+        <a href="visualize.html" data-page="visualize" data-i18n="nav.visualize">Visualize</a>
+        <a href="forecast.html" data-page="forecast" data-i18n="nav.forecast">Forecast</a>
+      </nav>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="workspace-intro">
+      <p class="eyebrow" data-i18n="data.eyebrow">Data workspace</p>
+      <h1 data-i18n="data.title">Prepare a trusted active dataset</h1>
+      <p data-i18n="data.intro">Upload a CSV, inspect its shape, and review the field meaning that drives every visual.</p>
+    </section>
+
+    <section class="card upload-card" aria-labelledby="uploadHeading">
+      <div>
+        <h2 id="uploadHeading" data-i18n="data.upload">Upload CSV</h2>
+        <p class="muted" data-i18n="data.csvOnly">CSV only</p>
+      </div>
+      <div class="upload-controls">
+        <label class="file-picker" for="fileInput"><span data-i18n="data.chooseCsv">Choose CSV</span><input type="file" id="fileInput" accept=".csv,text/csv"></label>
+        <button id="uploadButton" type="button" data-i18n="data.upload">Upload CSV</button>
+      </div>
+      <div id="uploadMessage"></div>
+    </section>
+
+    <div class="data-layout">
+      <aside id="datasetLibrary" class="card dataset-library" hidden aria-labelledby="datasetLibraryHeading">
+        <p class="eyebrow" data-i18n="data.datasets">Datasets</p>
+        <h2 id="datasetLibraryHeading" data-i18n="data.activeDataset">Active dataset</h2>
+        <label class="sr-only" for="datasetSelect" data-i18n="data.activeDataset">Active dataset</label>
+        <select id="datasetSelect"></select>
+      </aside>
+
+      <div id="datasetWorkspace" hidden>
+      <section class="card" aria-labelledby="overviewHeading">
+        <div class="section-heading"><div><p class="eyebrow" data-i18n="data.activeDataset">Active dataset</p><h2 id="overviewHeading" data-i18n="data.overview">Dataset overview</h2></div><a class="text-link" href="visualize.html" data-i18n="data.openVisualize">Open Visualize →</a></div>
+        <div id="datasetInfo" class="stats"></div>
+        <div id="datasetTable"></div>
+      </section>
+
+      <section class="card" aria-labelledby="semanticHeading">
+        <p class="eyebrow" data-i18n="data.semantic">Semantic review</p>
+        <h2 id="semanticHeading" data-i18n="data.reviewColumns">Review column meaning</h2>
+        <p class="muted" data-i18n="data.semanticIntro">These are recommendations, not rules. Your final selections are used by the visual builder.</p>
+        <div id="semanticTable"></div>
+      </section>
+
+      <section class="card" aria-labelledby="qualityHeading">
+        <p class="eyebrow" data-i18n="data.preparation">Data preparation</p>
+        <h2 id="qualityHeading" data-i18n="data.quality">Quality checks</h2>
+        <div id="qualityReport"></div>
+      </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/state.js?v=session-library-1"></script>
+  <script src="js/semantic.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/i18n.js?v=language-1"></script>
+  <script src="js/ui.js?v=language-1"></script>
+  <script src="js/data.js?v=language-1"></script>
+</body>
+</html>

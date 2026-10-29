@@ -1,0 +1,7 @@
+date,region,product,revenue,quantity,customer_age,email_opt_in
+2026-09-01,North,Laptop,12500,5,29,yes
+2026-09-01,South,Phone,8400,12,34,no
+2026-09-02,North,Phone,9200,14,27,yes
+2026-09-02,Central,Tablet,6100,8,31,yes
+2026-09-03,South,Laptop,13800,6,42,no
+2026-09-03,Central,Phone,7600,10,25,yes

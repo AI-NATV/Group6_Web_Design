@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base" content="auto">
+  <title>Forecast · Revenue Analytics</title>
+  <link rel="stylesheet" href="css/style.css?v=language-1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body data-page-title="page.forecast">
+  <header class="app-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span>Revenue</span> Analytics</a>
+      <nav class="main-nav" aria-label="Primary navigation" data-i18n-aria-label="nav.primary">
+        <a href="index.html" data-page="data" data-i18n="nav.data">Data</a>
+        <a href="visualize.html" data-page="visualize" data-i18n="nav.visualize">Visualize</a>
+        <a href="forecast.html" data-page="forecast" data-i18n="nav.forecast">Forecast</a>
+      </nav>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
+    </div>
+  </header>
+
+  <main id="forecastRoot" class="page-shell">
+    <div id="forecastApp" hidden>
+      <section class="workspace-intro"><p class="eyebrow" data-i18n="forecast.eyebrow">Forecast workspace</p><h1 data-i18n="forecast.title">Test the past. Forecast what comes next.</h1><p data-i18n="forecast.intro">Select one time series from your active dataset, compare simple forecasting methods, and inspect their errors before using the forecast.</p></section>
+      <section class="card" aria-labelledby="forecastDataHeading"><h2 id="forecastDataHeading" data-i18n="forecast.context">Active data context</h2><div id="forecastDatasetContext" class="stats"></div></section>
+      <section class="card" aria-labelledby="forecastSetupHeading">
+        <div class="section-heading forecast-heading"><div><h2 id="forecastSetupHeading" data-i18n="forecast.define">1. Define your forecasting task</h2></div><button id="forecastHelp" class="help-button" type="button" aria-expanded="false" aria-controls="forecastHelpPanel" aria-label="How to configure a forecast" data-i18n-aria-label="forecast.helpLabel">?</button></div>
+        <aside id="forecastHelpPanel" class="forecast-help" hidden aria-labelledby="forecastHelpTitle">
+          <h3 id="forecastHelpTitle" data-i18n="forecast.helpTitle">How to configure a forecast</h3>
+          <dl>
+            <dt data-i18n="forecast.time">Time column</dt><dd data-i18n="forecast.help.time">Choose the column that orders observations in time, usually Date. After duplicate dates are handled, each time point needs one value.</dd>
+            <dt data-i18n="forecast.target">Target to predict</dt><dd data-i18n="forecast.help.target">Choose the numeric value to forecast, such as Close/Last or Revenue. Do not choose information that will be unknown at forecast time.</dd>
+            <dt data-i18n="forecast.horizon">Horizon</dt><dd data-i18n="forecast.help.horizon">The number of future periods to estimate. Start with 7. For stocks with market holidays, this means 7 observations, not necessarily 7 calendar days.</dd>
+            <dt data-i18n="forecast.frequency">Frequency</dt><dd data-i18n="forecast.help.frequency">Keep Detect from dates unless you know the data are complete days, weeks or months. Use Observation steps for irregular schedules.</dd>
+            <dt data-i18n="forecast.missing">Invalid, missing and duplicate rows</dt><dd data-i18n="forecast.help.missing">Stop and report is the safe option. Use Skip, Sum or Mean only when that rule reflects the meaning of your data.</dd>
+            <dt data-i18n="forecast.season">Season length</dt><dd data-i18n="forecast.help.season">Leave 0 when you do not know that the series repeats. For example, use 12 for monthly data with annual seasonality.</dd>
+          </dl>
+        </aside>
+        <p class="muted" data-i18n="forecast.oneSeries">One series per run. The only input to each model is past target values; other columns are not used as predictors.</p>
+        <form id="forecastForm">
+          <fieldset id="forecastControls" class="forecast-controls">
+            <div class="forecast-form-grid">
+              <label><span data-i18n="forecast.time">Time column</span><select id="forecastTime" required></select></label>
+              <label><span data-i18n="forecast.target">Target to predict</span><select id="forecastTarget" required></select></label>
+              <label><span data-i18n="forecast.horizon">Horizon (number of periods)</span><input id="forecastHorizon" type="number" min="1" max="90" value="7" required></label>
+              <label><span data-i18n="forecast.frequency">Frequency</span><select id="forecastFrequency"><option value="auto" data-i18n="forecast.detect">Detect from dates</option><option value="daily" data-i18n="forecast.daily">Daily (complete calendar days)</option><option value="weekly" data-i18n="forecast.weekly">Weekly (every 7 days)</option><option value="monthly" data-i18n="forecast.monthly">Monthly (same day or month end)</option><option value="observations" data-i18n="forecast.observations">Observation steps (e.g. trading sessions)</option></select></label>
+              <label><span data-i18n="forecast.missing">Invalid / missing values</span><select id="forecastMissing"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="drop" data-i18n="forecast.skip">Skip invalid rows</option></select></label>
+              <label><span data-i18n="forecast.duplicates">Multiple rows on the same date</span><select id="forecastDuplicates"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="sum" data-i18n="forecast.sum">Sum per date</option><option value="mean" data-i18n="forecast.mean">Mean per date</option></select></label>
+              <label><span data-i18n="forecast.season">Season length (0 = disabled)</span><input id="forecastSeason" type="number" min="0" max="365" value="0" required></label>
+            </div>
+            <p class="muted small" data-i18n="forecast.seasonHelp">Season length is measured in observations (e.g. 12 for monthly annual seasonality). Only enable it when the repeating cycle makes sense. Dates must be normalized as YYYY-MM-DD; targets must be numeric.</p>
+            <p id="forecastEligibility" class="message info" aria-live="polite"></p>
+            <button id="runForecast" type="submit" data-i18n="forecast.run">Evaluate &amp; forecast</button>
+          </fieldset>
+        </form>
+        <div id="forecastMessage" aria-live="polite"></div>
+      </section>
+      <div id="forecastResults" hidden>
+        <section class="card" aria-labelledby="forecastEvaluationHeading">
+          <h2 id="forecastEvaluationHeading" data-i18n="forecast.evaluation">2. Check performance on past data</h2>
+          <p class="muted" data-i18n="forecast.evaluationIntro">Two expanding training windows predict the next full horizon. Lowest validation MAE selects the model. The final test window is kept separate from selection.</p>
+          <div id="forecastSummary" class="stats"></div>
+          <div id="forecastSplits"></div>
+          <div id="forecastComparison"></div>
+          <p class="muted small" data-i18n="forecast.metricsHelp">MAE is the average absolute error in target units. RMSE penalizes larger errors more. Lower is better; neither is a probability or confidence score.</p>
+          <h3 class="forecast-subheading" data-i18n="forecast.heldOut">Held-out test: actual vs predicted</h3>
+          <div class="forecast-chart-wrap"><canvas id="backtestChart" aria-label="Held-out actual values, selected model predictions and Naive baseline" data-i18n-aria-label="forecast.backtestChart" role="img"></canvas></div>
+          <div id="backtestTable"></div>
+        </section>
+        <section class="card" aria-labelledby="futureForecastHeading">
+          <h2 id="futureForecastHeading" data-i18n="forecast.future">3. Forecast beyond the uploaded history</h2>
+          <p class="muted" data-i18n="forecast.futureIntro">The selected model is refitted on all usable history. These are point estimates; prediction intervals are not available yet.</p>
+          <div id="forecastWarnings"></div>
+          <div class="forecast-chart-wrap"><canvas id="forecastChart" aria-label="Recent actual observations and future forecast" data-i18n-aria-label="forecast.futureChart" role="img"></canvas></div>
+          <div id="forecastTable"></div>
+          <details><summary data-i18n="forecast.method">Method and fitted parameters</summary><p id="forecastMethod" class="muted"></p></details>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/state.js?v=session-library-1"></script>
+  <script src="js/semantic.js"></script>
+  <script src="js/api.js?v=forecast-1"></script>
+  <script src="js/i18n.js?v=language-1"></script>
+  <script src="js/ui.js?v=language-1"></script>
+  <script src="js/forecast.js?v=language-1"></script>
+</body>
+</html>
