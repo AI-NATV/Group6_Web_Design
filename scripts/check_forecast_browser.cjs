@@ -71,10 +71,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       document.getElementById('fileInput').files = transfer.files;
       document.getElementById('uploadButton').click();
     })()`);
-    await until("AppState.read().datasets.length === 2");
-    assert.equal(await evaluate("document.querySelectorAll('#datasetSelect option').length"), 2);
-    assert.equal(await evaluate("AppState.activeDataset().filename"), "second-session-dataset.csv");
-    await evaluate("document.getElementById('datasetSelect').value = AppState.read().datasets[0].id; document.getElementById('datasetSelect').dispatchEvent(new Event('change', {bubbles:true}))");
+    // Datasets are saved in the server database, so earlier runs may also be listed (newest first).
+    await until("AppState.activeDataset()?.filename === 'second-session-dataset.csv' && document.querySelectorAll('#datasetSelect option').length >= 2");
+    await evaluate(`(() => {
+      const select = document.getElementById('datasetSelect');
+      select.value = Array.from(select.options).find((option) => option.text.startsWith('forecast-browser-test.csv')).value;
+      select.dispatchEvent(new Event('change', {bubbles:true}));
+    })()`);
     await until("AppState.activeDataset().filename === 'forecast-browser-test.csv'");
     await send("Page.navigate", { url: `${appUrl}/app/forecast.html` });
     await until("document.readyState === 'complete' && typeof ForecastWorkspace !== 'undefined' && !document.getElementById('forecastApp').hidden");
@@ -109,8 +112,11 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await evaluate("document.getElementById('forecastHorizon').value = '90'; document.getElementById('forecastHorizon').dispatchEvent(new Event('input', {bubbles:true}))");
     assert.equal(await evaluate("document.getElementById('forecastResults').hidden && document.getElementById('runForecast').disabled"), true);
     await evaluate(`(() => {
-      const state = AppState.read(); state.dataset.data[0].Close = null;
-      AppState.setDataset(state.dataset, state.semanticModel);
+      // Corrupt only this tab's cached copy; the saved dataset on the server is unchanged.
+      const key = 'revenue-analytics-active-v3';
+      const entry = JSON.parse(sessionStorage.getItem(key));
+      entry.dataset.data[0].Close = null;
+      sessionStorage.setItem(key, JSON.stringify(entry));
       document.getElementById('forecastHorizon').value = '7';
       document.getElementById('forecastHorizon').dispatchEvent(new Event('input', {bubbles:true}));
       document.getElementById('runForecast').click();
@@ -119,7 +125,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     assert.equal(await evaluate("document.getElementById('forecastResults').hidden"), true);
     assert.match(await evaluate("document.getElementById('forecastMessage').textContent"), /invalid\/missing/);
     assert.deepEqual(exceptions, []);
-    console.log(JSON.stringify({ passed: true, chartLoaded, checks: ['CSV upload', 'multiple session datasets', 'dataset switching', 'precision preservation', 'forecast help', 'target selection', 'live forecast API', 'comparison and test tables', 'chronological chart', 'mobile layout', 'stale-result removal', 'insufficient-history gating', 'API error recovery'], screenshot: '.tmp-forecast-qa/forecast.png' }));
+    console.log(JSON.stringify({ passed: true, chartLoaded, checks: ['CSV upload', 'multiple saved datasets', 'dataset switching', 'precision preservation', 'forecast help', 'target selection', 'live forecast API', 'comparison and test tables', 'chronological chart', 'mobile layout', 'stale-result removal', 'insufficient-history gating', 'API error recovery'], screenshot: '.tmp-forecast-qa/forecast.png' }));
   } finally {
     await send("Page.close");
     socket.close();

@@ -236,9 +236,17 @@ const VisualizeWorkspace = (() => {
     }
   }
 
-  function saveVisual() {
+  async function saveVisual() {
     if (!lastGeneratedVisual) return;
-    AppState.addVisual(lastGeneratedVisual);
+    const button = document.getElementById("addToDashboard");
+    button.disabled = true;
+    try {
+      await AppState.addVisual(lastGeneratedVisual);
+    } catch (error) {
+      button.disabled = false;
+      UI.setMessage("builderMessage", t("visual.saveError", { error: error.message }), "error");
+      return;
+    }
     renderDashboard();
     UI.setMessage("builderMessage", t("visual.visualAdded"));
   }
@@ -344,12 +352,19 @@ const VisualizeWorkspace = (() => {
     });
     document.getElementById("generateChart").addEventListener("click", generateChart);
     document.getElementById("addToDashboard").addEventListener("click", saveVisual);
-    document.getElementById("savedVisuals").addEventListener("click", (event) => {
+    document.getElementById("savedVisuals").addEventListener("click", async (event) => {
       const remove = event.target.closest("[data-remove-visual]");
       const move = event.target.closest("[data-move]");
-      if (remove) AppState.removeVisual(remove.dataset.removeVisual);
-      if (move) AppState.moveVisual(move.dataset.visualId, move.dataset.move === "up" ? -1 : 1);
-      if (remove || move) renderDashboard();
+      if (!remove && !move) return;
+      document.querySelectorAll("#savedVisuals .visual-actions button").forEach((button) => { button.disabled = true; });
+      try {
+        if (remove) await AppState.removeVisual(remove.dataset.removeVisual);
+        else await AppState.moveVisual(move.dataset.visualId, move.dataset.move === "up" ? -1 : 1);
+        UI.setMessage("dashboardMessage", "");
+      } catch (error) {
+        UI.setMessage("dashboardMessage", t("visual.saveError", { error: error.message }), "error");
+      }
+      renderDashboard();
     });
   }
 

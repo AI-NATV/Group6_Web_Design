@@ -29,13 +29,26 @@ const Api = (() => {
     return body;
   }
 
+  const json = (method, payload) => ({
+    method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  });
+
   return {
     health: () => request("/health"),
-    upload: (file) => {
+    // Datasets and their dashboard visuals are stored in the server database.
+    listDatasets: () => request("/api/v1/datasets?limit=100"),
+    getDataset: (id) => request(`/api/v1/datasets/${encodeURIComponent(id)}`),
+    createDataset: (file) => {
       const body = new FormData();
       body.append("file", file);
-      return request("/upload", { method: "POST", body });
+      return request("/api/v1/datasets", { method: "POST", body });
     },
+    updateDataset: (id, changes) => request(`/api/v1/datasets/${encodeURIComponent(id)}`, json("PATCH", changes)),
+    deleteDataset: (id) => request(`/api/v1/datasets/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    listVisuals: (datasetId) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/visuals`),
+    createVisual: (datasetId, visual) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/visuals`, json("POST", visual)),
+    moveVisual: (id, position) => request(`/api/v1/visuals/${encodeURIComponent(id)}`, json("PATCH", { position })),
+    deleteVisual: (id) => request(`/api/v1/visuals/${encodeURIComponent(id)}`, { method: "DELETE" }),
     forecast: (payload) => request("/forecast", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),

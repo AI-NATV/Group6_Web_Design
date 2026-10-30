@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Visualize · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=checklist-1">
+  <link rel="stylesheet" href="css/style.css?v=database-1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body data-page-title="page.visualize">
@@ -49,7 +49,8 @@
       </div>
 
       <section class="dashboard-section" aria-labelledby="dashboardHeading">
-        <div class="section-heading"><div><p class="eyebrow" data-i18n="visual.dashboard">Session dashboard</p><h2 id="dashboardHeading" data-i18n="visual.saved">Saved visuals</h2><p class="muted" data-i18n="visual.savedIntro">Visuals and their configuration stay available until this browser session ends.</p></div></div>
+        <div class="section-heading"><div><p class="eyebrow" data-i18n="visual.dashboard">Saved dashboard</p><h2 id="dashboardHeading" data-i18n="visual.saved">Saved visuals</h2><p class="muted" data-i18n="visual.savedIntro">Visuals are saved with this dataset in the project database.</p></div></div>
+        <div id="dashboardMessage" aria-live="polite"></div>
         <div id="kpiCards" class="kpi-cards"></div>
         <div id="savedVisuals" class="saved-visuals"></div>
       </section>
@@ -59,15 +60,15 @@
   <footer class="app-footer">
     <div class="footer-inner">
       <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
-      <p data-i18n="footer.privacy">Datasets stay in this browser session; the server does not store them.</p>
+      <p data-i18n="footer.privacy">Datasets and saved visuals are stored in the project database on the server.</p>
     </div>
   </footer>
 
-  <script src="js/state.js?v=session-library-1" defer></script>
+  <script src="js/state.js?v=database-1" defer></script>
   <script src="js/semantic.js" defer></script>
-  <script src="js/api.js" defer></script>
-  <script src="js/i18n.js?v=checklist-1" defer></script>
+  <script src="js/api.js?v=database-1" defer></script>
+  <script src="js/i18n.js?v=database-1" defer></script>
   <script src="js/ui.js?v=language-1" defer></script>
-  <script src="js/visualize.js?v=checklist-1" defer></script>
+  <script src="js/visualize.js?v=database-1" defer></script>
 </body>
 </html>

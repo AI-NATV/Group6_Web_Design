@@ -24,3 +24,8 @@ def _origins_from_environment() -> list[str]:
 
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE_BYTES", str(10 * 1024 * 1024)))
 ALLOWED_ORIGINS = _origins_from_environment()
+
+# SQLite (a file under the git-ignored data/ folder) for development; set a
+# PostgreSQL URL such as postgresql+psycopg://user:password@localhost:5432/dbname
+# in the environment for a shared or deployed database. Never commit credentials.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Data · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=checklist-1">
+  <link rel="stylesheet" href="css/style.css?v=database-1">
 </head>
 <body data-page-title="page.data">
   <header class="app-header">
@@ -32,7 +32,7 @@
         <h2 id="uploadHeading" data-i18n="data.upload">Upload CSV</h2>
         <p class="muted" data-i18n="data.csvOnly">CSV only</p>
       </div>
-      <form id="uploadForm" class="upload-controls" action="/upload" method="post" enctype="multipart/form-data" novalidate>
+      <form id="uploadForm" class="upload-controls" action="/api/v1/datasets" method="post" enctype="multipart/form-data" novalidate>
         <label class="file-picker" for="fileInput"><span data-i18n="data.chooseCsv">Choose CSV</span><input type="file" id="fileInput" name="file" accept=".csv,text/csv" required></label>
         <button id="uploadButton" type="submit" data-i18n="data.upload">Upload CSV</button>
       </form>
@@ -42,9 +42,11 @@
     <div class="data-layout">
       <aside id="datasetLibrary" class="card dataset-library" hidden aria-labelledby="datasetLibraryHeading">
         <p class="eyebrow" data-i18n="data.datasets">Datasets</p>
-        <h2 id="datasetLibraryHeading" data-i18n="data.activeDataset">Active dataset</h2>
+        <h2 id="datasetLibraryHeading" data-i18n="data.savedDatasets">Saved datasets</h2>
         <label class="sr-only" for="datasetSelect" data-i18n="data.activeDataset">Active dataset</label>
         <select id="datasetSelect" name="dataset"></select>
+        <button id="deleteDataset" class="button-secondary button-danger" type="button" disabled data-i18n="data.deleteDataset">Delete dataset</button>
+        <div id="libraryMessage" aria-live="polite"></div>
       </aside>
 
       <div id="datasetWorkspace" hidden>
@@ -59,6 +61,7 @@
         <h2 id="semanticHeading" data-i18n="data.reviewColumns">Review column meaning</h2>
         <p class="muted" data-i18n="data.semanticIntro">These are recommendations, not rules. Your final selections are used by the visual builder.</p>
         <div id="semanticTable"></div>
+        <div id="semanticMessage" aria-live="polite"></div>
       </section>
 
       <section class="card" aria-labelledby="qualityHeading">
@@ -73,15 +76,15 @@
   <footer class="app-footer">
     <div class="footer-inner">
       <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
-      <p data-i18n="footer.privacy">Datasets stay in this browser session; the server does not store them.</p>
+      <p data-i18n="footer.privacy">Datasets and saved visuals are stored in the project database on the server.</p>
     </div>
   </footer>
 
-  <script src="js/state.js?v=session-library-1" defer></script>
+  <script src="js/state.js?v=database-1" defer></script>
   <script src="js/semantic.js" defer></script>
-  <script src="js/api.js" defer></script>
-  <script src="js/i18n.js?v=checklist-1" defer></script>
+  <script src="js/api.js?v=database-1" defer></script>
+  <script src="js/i18n.js?v=database-1" defer></script>
   <script src="js/ui.js?v=language-1" defer></script>
-  <script src="js/data.js?v=checklist-1" defer></script>
+  <script src="js/data.js?v=database-1" defer></script>
 </body>
 </html>

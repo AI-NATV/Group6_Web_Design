@@ -1,12 +1,7 @@
-from fastapi.testclient import TestClient
-
-from backend.main import app
+"""Health, static frontend and CSV upload validation."""
 
 
-client = TestClient(app)
-
-
-def test_health_check_returns_service_status():
+def test_health_check_returns_service_status(client):
     response = client.get("/health")
 
     assert response.status_code == 200
@@ -14,7 +9,7 @@ def test_health_check_returns_service_status():
     assert response.headers["X-Request-ID"]
 
 
-def test_frontend_workspaces_are_served_same_origin():
+def test_frontend_workspaces_are_served_same_origin(client):
     data_page = client.get("/app/")
     visualize_page = client.get("/app/visualize.html")
     forecast_page = client.get("/app/forecast.html")
@@ -27,24 +22,24 @@ def test_frontend_workspaces_are_served_same_origin():
     assert client.get("/app/js/visualize.js").status_code == 200
 
 
-def test_upload_returns_json_safe_dataset():
+def test_upload_returns_json_safe_dataset(client):
     response = client.post(
-        "/upload",
+        "/api/v1/datasets",
         files={"file": ("sales.csv", b"region,revenue\nNorth,1200\nSouth,\n", "text/csv")},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["columns"] == ["region", "revenue"]
     assert response.json()["data"][1]["revenue"] is None
 
 
-def test_upload_normalizes_currency_without_losing_raw_values():
+def test_upload_normalizes_currency_without_losing_raw_values(client):
     response = client.post(
-        "/upload",
+        "/api/v1/datasets",
         files={"file": ("prices.csv", b"date,close\n2026-09-01,\"$1,234.50\"\n2026-09-02,($12.25)\n", "text/csv")},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     payload = response.json()
     assert payload["raw_data"][0]["close"] == "$1,234.50"
     assert payload["data"][0]["close"] == 1234.5
@@ -52,23 +47,23 @@ def test_upload_normalizes_currency_without_losing_raw_values():
     assert payload["profiles"]["close"]["detected_type"] == "currency"
 
 
-def test_upload_normalizes_an_unambiguous_us_date_format():
+def test_upload_normalizes_an_unambiguous_us_date_format(client):
     response = client.post(
-        "/upload",
+        "/api/v1/datasets",
         files={"file": ("prices.csv", b"date,close\n07/31/2025,$177.87\n07/30/2025,$179.27\n", "text/csv")},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     payload = response.json()
     assert payload["data"][0]["date"] == "2025-07-31"
     assert payload["profiles"]["date"]["date_format"] == "month/day/year"
 
 
-def test_upload_rejects_invalid_files():
+def test_upload_rejects_invalid_files(client):
     invalid_extension = client.post(
-        "/upload", files={"file": ("sales.txt", b"region,revenue\nNorth,1", "text/plain")}
+        "/api/v1/datasets", files={"file": ("sales.txt", b"region,revenue\nNorth,1", "text/plain")}
     )
-    empty_csv = client.post("/upload", files={"file": ("sales.csv", b"", "text/csv")})
+    empty_csv = client.post("/api/v1/datasets", files={"file": ("sales.csv", b"", "text/csv")})
 
     assert invalid_extension.status_code == 400
     assert "Only CSV" in invalid_extension.json()["detail"]
@@ -76,13 +71,13 @@ def test_upload_rejects_invalid_files():
     assert "empty" in empty_csv.json()["detail"].lower()
 
 
-def test_upload_rejects_header_only_csv():
-    response = client.post("/upload", files={"file": ("sales.csv", b"region,revenue\n", "text/csv")})
+def test_upload_rejects_header_only_csv(client):
+    response = client.post("/api/v1/datasets", files={"file": ("sales.csv", b"region,revenue\n", "text/csv")})
 
     assert response.status_code == 400
     assert "no data rows" in response.json()["detail"].lower()
 
 
-def test_forecast_requires_real_observations():
+def test_forecast_requires_real_observations(client):
     response = client.post("/forecast?period=1week")
     assert response.status_code == 422
