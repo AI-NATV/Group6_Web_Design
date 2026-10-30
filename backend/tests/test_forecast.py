@@ -154,9 +154,9 @@ def test_baseline_math_and_metrics():
     assert metrics([1, 3], [2, 2]) == {"mae": 1, "rmse": 1}
 
 
-def test_upload_to_forecast_uses_normalized_currency(client):
+def test_upload_to_forecast_uses_normalized_currency(client, alice):
     rows = [f"{date(2025, 1, 1) + timedelta(days=i)},${100 + i}.125" for i in range(60)]
-    uploaded = client.post("/api/v1/datasets", files={"file": ("prices.csv", ("Date,Close\n" + "\n".join(rows)).encode(), "text/csv")}).json()
+    uploaded = alice.post("/api/v1/datasets", files={"file": ("prices.csv", ("Date,Close\n" + "\n".join(rows)).encode(), "text/csv")}).json()
     body = payload()
     body["target_column"] = "Close"
     body["observations"] = [{"date": row["Date"], "value": row["Close"]} for row in uploaded["data"]]

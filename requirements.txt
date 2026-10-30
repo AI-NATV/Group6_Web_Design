@@ -4,6 +4,9 @@ uvicorn[standard]==0.54.0
 pandas==3.0.5
 python-multipart==0.0.32
 sqlmodel==0.0.48
+pwdlib[bcrypt]==0.3.1
+bcrypt==5.0.0
+PyJWT==2.15.0
 pytest==9.2.0
 httpx==0.28.1
 # PostgreSQL driver, only needed when DATABASE_URL points at PostgreSQL:

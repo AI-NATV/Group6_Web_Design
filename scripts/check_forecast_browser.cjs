@@ -48,6 +48,16 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await send("Runtime.enable");
     await send("Page.enable");
     await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    // The workspaces need an account: register a throwaway user and keep its token in this tab.
+    await send("Page.navigate", { url: `${appUrl}/app/login.html` });
+    await until("document.readyState === 'complete' && typeof Api !== 'undefined' && !!document.getElementById('loginForm')");
+    await evaluate(setBase);
+    await evaluate(`(async () => {
+      const username = 'qa-' + Date.now();
+      await Api.register(username, 'qa-password-123');
+      Auth.setToken((await Api.login(username, 'qa-password-123')).access_token);
+      Auth.setUser(await Api.me());
+    })()`);
     await send("Page.navigate", { url: `${appUrl}/app/` });
     await until("document.readyState === 'complete' && typeof AppState !== 'undefined' && !!document.getElementById('uploadButton')");
     await evaluate(setBase);
@@ -125,7 +135,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     assert.equal(await evaluate("document.getElementById('forecastResults').hidden"), true);
     assert.match(await evaluate("document.getElementById('forecastMessage').textContent"), /invalid\/missing/);
     assert.deepEqual(exceptions, []);
-    console.log(JSON.stringify({ passed: true, chartLoaded, checks: ['CSV upload', 'multiple saved datasets', 'dataset switching', 'precision preservation', 'forecast help', 'target selection', 'live forecast API', 'comparison and test tables', 'chronological chart', 'mobile layout', 'stale-result removal', 'insufficient-history gating', 'API error recovery'], screenshot: '.tmp-forecast-qa/forecast.png' }));
+    console.log(JSON.stringify({ passed: true, chartLoaded, checks: ['register and sign in', 'CSV upload', 'multiple saved datasets', 'dataset switching', 'precision preservation', 'forecast help', 'target selection', 'live forecast API', 'comparison and test tables', 'chronological chart', 'mobile layout', 'stale-result removal', 'insufficient-history gating', 'API error recovery'], screenshot: '.tmp-forecast-qa/forecast.png' }));
   } finally {
     await send("Page.close");
     socket.close();

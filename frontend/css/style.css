@@ -203,6 +203,7 @@ a {
 }
 
 .header-status {
+  min-width: 0;
   margin-left: auto;
   display: flex;
   align-items: center;
@@ -236,6 +237,24 @@ a {
   background: var(--brand-soft);
   color: var(--brand-dark);
   text-overflow: ellipsis;
+}
+
+/* Long names shrink with an ellipsis instead of widening the header. */
+.user-indicator {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-button {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  font-size: .76rem;
+  white-space: nowrap;
 }
 
 .status.ok {
@@ -1065,6 +1084,39 @@ td select {
   margin-bottom: 16px;
 }
 
+/* ---------- Login page ---------- */
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: start;
+  gap: 22px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.auth-form label {
+  color: var(--ink-soft);
+  font-size: .86rem;
+  font-weight: 700;
+}
+
+.auth-form input {
+  margin-bottom: 8px;
+}
+
+.auth-form button {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+#authMessage .message {
+  margin: 0 0 22px;
+}
+
 /* ---------- Footer ---------- */
 .app-footer {
   border-top: 1px solid var(--line);
@@ -1210,7 +1262,8 @@ td select {
   }
 
   .header-status .dataset-indicator,
-  .header-status .status {
+  .header-status .status,
+  .header-status .user-indicator {
     display: none;
   }
 

@@ -127,7 +127,7 @@ const ForecastWorkspace = (() => {
   }
 
   function initialise() {
-    UI.initialiseShell("forecast");
+    if (!UI.initialiseShell("forecast")) return;
     const { dataset, semanticModel } = AppState.read();
     if (!dataset) {
       UI.showDatasetRequired("forecastRoot", t("forecast.eyebrow"));
