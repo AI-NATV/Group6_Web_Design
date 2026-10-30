@@ -35,6 +35,21 @@ const I18n = (() => {
   Object.assign(dictionaries.en, { "forecast.activeFile": "Active file", "forecast.numericTargets": "Numeric targets available", "forecast.backtestChart": "Held-out actual values, selected model predictions and Naive baseline", "forecast.futureChart": "Recent actual observations and future forecast" });
   Object.assign(dictionaries.vi, { "forecast.activeFile": "Tệp đang dùng", "forecast.numericTargets": "Số mục tiêu số khả dụng", "forecast.backtestChart": "Giá trị thực tế giữ lại, dự đoán của mô hình đã chọn và mốc ngây thơ", "forecast.futureChart": "Các quan sát thực tế gần đây và dự báo tương lai" });
 
+  Object.assign(dictionaries.en, {
+    "footer.project": "Revenue Analytics · Group 6 · Web Design and Programming", "footer.privacy": "Datasets stay in this browser session; the server does not store them.",
+    "data.notCsv": "Only .csv files are supported. Choose a CSV file.", "data.emptyFile": "The selected file is empty.", "data.tooLarge": "This file is {size} MB; the maximum is {max} MB.",
+    "data.previewCaption": "Raw values, rows {start}–{end} of {total}", "data.semanticCaption": "Detected and final type and role for each column",
+    "visual.chartPreview": "Chart preview. Generate a chart to describe it here.",
+    "forecast.settings": "Forecast settings", "forecast.splitsCaption": "Chronological splits used for evaluation", "forecast.comparisonCaption": "Validation errors by model (lower is better)", "forecast.backtestCaption": "Held-out actual values and predictions", "forecast.futureCaption": "Future point forecasts",
+  });
+  Object.assign(dictionaries.vi, {
+    "footer.project": "Revenue Analytics · Nhóm 6 · Thiết kế và Lập trình Web", "footer.privacy": "Bộ dữ liệu chỉ nằm trong phiên trình duyệt này; máy chủ không lưu lại.",
+    "data.notCsv": "Chỉ hỗ trợ tệp .csv. Hãy chọn một tệp CSV.", "data.emptyFile": "Tệp đã chọn đang trống.", "data.tooLarge": "Tệp này có dung lượng {size} MB; tối đa là {max} MB.",
+    "data.previewCaption": "Giá trị gốc, hàng {start}–{end} trên {total}", "data.semanticCaption": "Kiểu và vai trò phát hiện được và cuối cùng của từng cột",
+    "visual.chartPreview": "Khung xem trước biểu đồ. Hãy tạo biểu đồ để có mô tả tại đây.",
+    "forecast.settings": "Cấu hình dự báo", "forecast.splitsCaption": "Các phần chia theo thời gian dùng để đánh giá", "forecast.comparisonCaption": "Sai số xác thực theo mô hình (càng thấp càng tốt)", "forecast.backtestCaption": "Giá trị thực tế giữ lại và dự đoán", "forecast.futureCaption": "Dự báo điểm tương lai",
+  });
+
   function language() { return localStorage.getItem(STORAGE_KEY) === "vi" ? "vi" : "en"; }
   function t(key, variables = {}) {
     const phrase = dictionaries[language()][key] || dictionaries.en[key] || key;

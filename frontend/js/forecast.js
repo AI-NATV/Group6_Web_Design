@@ -45,8 +45,8 @@ const ForecastWorkspace = (() => {
     return !error;
   }
 
-  function table(headers, rows) {
-    return `<div class="table-scroll"><table><thead><tr>${headers.map((value) => `<th scope="col">${escape(value)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((value) => `<td>${escape(value)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  function table(caption, headers, rows) {
+    return `<div class="table-scroll"><table><caption>${escape(caption)}</caption><thead><tr>${headers.map((value) => `<th scope="col">${escape(value)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((value) => `<td>${escape(value)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   }
 
   function draw(id, labels, datasets, target) {
@@ -72,17 +72,17 @@ const ForecastWorkspace = (() => {
       [t("forecast.periods"), `${result.horizon} · ${result.frequency}`], [t("forecast.usableDates"), result.quality.usable_dates],
     ].map(([label, value]) => `<div class="stat"><span>${escape(label)}</span><strong title="${escape(value)}">${escape(value)}</strong></div>`).join("");
     const split = result.splits;
-    el("forecastSplits").innerHTML = table([t("forecast.stage"), t("forecast.dates"), t("forecast.purpose")], [
+    el("forecastSplits").innerHTML = table(t("forecast.splitsCaption"), [t("forecast.stage"), t("forecast.dates"), t("forecast.purpose")], [
       [t("forecast.initialTraining"), `${split.initial_train_start} → ${split.initial_train_end}`, t("forecast.observationsCount", { count: split.initial_train_count })],
       [t("forecast.validation"), `${split.validation_start} → ${split.validation_end}`, t("forecast.validationPurpose", { horizon: result.horizon })],
       [t("forecast.heldTest"), `${split.test_start} → ${split.test_end}`, t("forecast.testPurpose", { count: split.test_count })],
       [t("forecast.finalRefit"), `${t("forecast.date")} ${split.test_end}`, t("forecast.refitPurpose", { count: split.refit_count })],
     ]);
-    el("forecastComparison").innerHTML = table([t("forecast.model"), t("forecast.validationMae"), t("forecast.validationRmse"), t("forecast.selection")],
+    el("forecastComparison").innerHTML = table(t("forecast.comparisonCaption"), [t("forecast.model"), t("forecast.validationMae"), t("forecast.validationRmse"), t("forecast.selection")],
       result.comparison.map((item) => [t(modelNames[item.model]), number(item.validation.mae), number(item.validation.rmse), item.model === result.selected_model ? t("forecast.selected") : ""]));
-    el("backtestTable").innerHTML = `<details><summary>${t("forecast.viewPredictions")}</summary>${table([t("forecast.date"), t("forecast.actual"), name, t("forecast.naive")], result.backtest.map((point) => [point.date, number(point.actual), number(point.predicted), number(point.naive)]))}</details>`;
+    el("backtestTable").innerHTML = `<details><summary>${t("forecast.viewPredictions")}</summary>${table(t("forecast.backtestCaption"), [t("forecast.date"), t("forecast.actual"), name, t("forecast.naive")], result.backtest.map((point) => [point.date, number(point.actual), number(point.predicted), number(point.naive)]))}</details>`;
     el("forecastWarnings").innerHTML = result.warnings.map((warning) => `<p class="message warning">${escape(warning)}</p>`).join("");
-    el("forecastTable").innerHTML = table([t("forecast.step"), t("forecast.datePeriod"), t("forecast.predicted", { field: result.target_column })], result.forecast.map((point) => [point.step, point.date || t("forecast.observation", { step: point.step }), number(point.predicted)]));
+    el("forecastTable").innerHTML = table(t("forecast.futureCaption"), [t("forecast.step"), t("forecast.datePeriod"), t("forecast.predicted", { field: result.target_column })], result.forecast.map((point) => [point.step, point.date || t("forecast.observation", { step: point.step }), number(point.predicted)]));
     el("forecastMethod").textContent = t("forecast.fitted", { name, parameters: JSON.stringify(result.model_parameters), target: result.target_column });
     if (typeof Chart === "undefined") {
       UI.setMessage("forecastMessage", t("forecast.chartUnavailable"), "warning");

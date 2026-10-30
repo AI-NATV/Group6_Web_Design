@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Data · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=language-1">
+  <link rel="stylesheet" href="css/style.css?v=checklist-1">
 </head>
 <body data-page-title="page.data">
   <header class="app-header">
@@ -16,7 +16,7 @@
         <a href="visualize.html" data-page="visualize" data-i18n="nav.visualize">Visualize</a>
         <a href="forecast.html" data-page="forecast" data-i18n="nav.forecast">Forecast</a>
       </nav>
-      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
     </div>
   </header>
 
@@ -32,10 +32,10 @@
         <h2 id="uploadHeading" data-i18n="data.upload">Upload CSV</h2>
         <p class="muted" data-i18n="data.csvOnly">CSV only</p>
       </div>
-      <div class="upload-controls">
-        <label class="file-picker" for="fileInput"><span data-i18n="data.chooseCsv">Choose CSV</span><input type="file" id="fileInput" accept=".csv,text/csv"></label>
-        <button id="uploadButton" type="button" data-i18n="data.upload">Upload CSV</button>
-      </div>
+      <form id="uploadForm" class="upload-controls" action="/upload" method="post" enctype="multipart/form-data" novalidate>
+        <label class="file-picker" for="fileInput"><span data-i18n="data.chooseCsv">Choose CSV</span><input type="file" id="fileInput" name="file" accept=".csv,text/csv" required></label>
+        <button id="uploadButton" type="submit" data-i18n="data.upload">Upload CSV</button>
+      </form>
       <div id="uploadMessage"></div>
     </section>
 
@@ -44,7 +44,7 @@
         <p class="eyebrow" data-i18n="data.datasets">Datasets</p>
         <h2 id="datasetLibraryHeading" data-i18n="data.activeDataset">Active dataset</h2>
         <label class="sr-only" for="datasetSelect" data-i18n="data.activeDataset">Active dataset</label>
-        <select id="datasetSelect"></select>
+        <select id="datasetSelect" name="dataset"></select>
       </aside>
 
       <div id="datasetWorkspace" hidden>
@@ -70,11 +70,18 @@
     </div>
   </main>
 
-  <script src="js/state.js?v=session-library-1"></script>
-  <script src="js/semantic.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/i18n.js?v=language-1"></script>
-  <script src="js/ui.js?v=language-1"></script>
-  <script src="js/data.js?v=language-1"></script>
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
+      <p data-i18n="footer.privacy">Datasets stay in this browser session; the server does not store them.</p>
+    </div>
+  </footer>
+
+  <script src="js/state.js?v=session-library-1" defer></script>
+  <script src="js/semantic.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/i18n.js?v=checklist-1" defer></script>
+  <script src="js/ui.js?v=language-1" defer></script>
+  <script src="js/data.js?v=checklist-1" defer></script>
 </body>
 </html>
