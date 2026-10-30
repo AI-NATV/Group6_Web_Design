@@ -301,7 +301,7 @@ const DataWorkspace = (() => {
   }
 
   async function initialise() {
-    UI.initialiseShell("data");
+    if (!UI.initialiseShell("data")) return;
     bindEvents();
     renderWorkspace();
     await refreshLibrary();

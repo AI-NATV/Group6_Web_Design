@@ -18,12 +18,13 @@ def test_frontend_workspaces_are_served_same_origin(client):
     assert "Data workspace" in data_page.text
     assert "Visualize workspace" in visualize_page.text
     assert "Define your forecasting task" in forecast_page.text
+    assert "Sign in to your workspace" in client.get("/app/login.html").text
     assert client.get("/app/css/style.css").status_code == 200
     assert client.get("/app/js/visualize.js").status_code == 200
 
 
-def test_upload_returns_json_safe_dataset(client):
-    response = client.post(
+def test_upload_returns_json_safe_dataset(alice):
+    response = alice.post(
         "/api/v1/datasets",
         files={"file": ("sales.csv", b"region,revenue\nNorth,1200\nSouth,\n", "text/csv")},
     )
@@ -33,8 +34,8 @@ def test_upload_returns_json_safe_dataset(client):
     assert response.json()["data"][1]["revenue"] is None
 
 
-def test_upload_normalizes_currency_without_losing_raw_values(client):
-    response = client.post(
+def test_upload_normalizes_currency_without_losing_raw_values(alice):
+    response = alice.post(
         "/api/v1/datasets",
         files={"file": ("prices.csv", b"date,close\n2026-09-01,\"$1,234.50\"\n2026-09-02,($12.25)\n", "text/csv")},
     )
@@ -47,8 +48,8 @@ def test_upload_normalizes_currency_without_losing_raw_values(client):
     assert payload["profiles"]["close"]["detected_type"] == "currency"
 
 
-def test_upload_normalizes_an_unambiguous_us_date_format(client):
-    response = client.post(
+def test_upload_normalizes_an_unambiguous_us_date_format(alice):
+    response = alice.post(
         "/api/v1/datasets",
         files={"file": ("prices.csv", b"date,close\n07/31/2025,$177.87\n07/30/2025,$179.27\n", "text/csv")},
     )
@@ -59,11 +60,11 @@ def test_upload_normalizes_an_unambiguous_us_date_format(client):
     assert payload["profiles"]["date"]["date_format"] == "month/day/year"
 
 
-def test_upload_rejects_invalid_files(client):
-    invalid_extension = client.post(
+def test_upload_rejects_invalid_files(alice):
+    invalid_extension = alice.post(
         "/api/v1/datasets", files={"file": ("sales.txt", b"region,revenue\nNorth,1", "text/plain")}
     )
-    empty_csv = client.post("/api/v1/datasets", files={"file": ("sales.csv", b"", "text/csv")})
+    empty_csv = alice.post("/api/v1/datasets", files={"file": ("sales.csv", b"", "text/csv")})
 
     assert invalid_extension.status_code == 400
     assert "Only CSV" in invalid_extension.json()["detail"]
@@ -71,8 +72,8 @@ def test_upload_rejects_invalid_files(client):
     assert "empty" in empty_csv.json()["detail"].lower()
 
 
-def test_upload_rejects_header_only_csv(client):
-    response = client.post("/api/v1/datasets", files={"file": ("sales.csv", b"region,revenue\n", "text/csv")})
+def test_upload_rejects_header_only_csv(alice):
+    response = alice.post("/api/v1/datasets", files={"file": ("sales.csv", b"region,revenue\n", "text/csv")})
 
     assert response.status_code == 400
     assert "no data rows" in response.json()["detail"].lower()

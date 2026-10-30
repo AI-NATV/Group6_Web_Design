@@ -369,7 +369,7 @@ const VisualizeWorkspace = (() => {
   }
 
   function initialise() {
-    UI.initialiseShell("visualize");
+    if (!UI.initialiseShell("visualize")) return;
     if (!AppState.activeDataset()) {
       UI.showDatasetRequired("visualizeRoot", t("visual.eyebrow"));
       return;

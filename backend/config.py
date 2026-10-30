@@ -29,3 +29,9 @@ ALLOWED_ORIGINS = _origins_from_environment()
 # PostgreSQL URL such as postgresql+psycopg://user:password@localhost:5432/dbname
 # in the environment for a shared or deployed database. Never commit credentials.
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/app.db")
+
+# Signs login tokens (JWT). Required, with no default: anyone who knows it can
+# forge a token for any user. Generate one per environment with
+#   python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))

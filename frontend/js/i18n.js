@@ -36,21 +36,35 @@ const I18n = (() => {
   Object.assign(dictionaries.vi, { "forecast.activeFile": "Tệp đang dùng", "forecast.numericTargets": "Số mục tiêu số khả dụng", "forecast.backtestChart": "Giá trị thực tế giữ lại, dự đoán của mô hình đã chọn và mốc ngây thơ", "forecast.futureChart": "Các quan sát thực tế gần đây và dự báo tương lai" });
 
   Object.assign(dictionaries.en, {
-    "footer.project": "Revenue Analytics · Group 6 · Web Design and Programming", "footer.privacy": "Datasets and saved visuals are stored in the project database on the server.",
+    "footer.project": "Revenue Analytics · Group 6 · Web Design and Programming", "footer.privacy": "Datasets and saved visuals are stored in the project database and visible only to your account.",
     "data.notCsv": "Only .csv files are supported. Choose a CSV file.", "data.emptyFile": "The selected file is empty.", "data.tooLarge": "This file is {size} MB; the maximum is {max} MB.",
     "data.previewCaption": "Raw values, rows {start}–{end} of {total}", "data.semanticCaption": "Detected and final type and role for each column",
     "visual.chartPreview": "Chart preview. Generate a chart to describe it here.",
     "data.savedDatasets": "Saved datasets", "data.chooseSaved": "Choose a saved dataset", "data.deleteDataset": "Delete dataset", "data.confirmDelete": "Delete “{name}” and its saved visuals? This cannot be undone.", "data.deleted": "Deleted “{name}” and its saved visuals.", "data.loading": "Loading the dataset…", "data.libraryError": "Could not load saved datasets: {error}", "data.saveError": "Could not save the change: {error}",
     "visual.saveError": "Could not save the dashboard change: {error}",
+    "page.login": "Sign in · Revenue Analytics", "auth.eyebrow": "Account", "auth.title": "Sign in to your workspace", "auth.intro": "Your datasets and dashboards are private to your account.",
+    "auth.signIn": "Sign in", "auth.register": "Create an account", "auth.registerButton": "Create account", "auth.username": "Username", "auth.password": "Password", "auth.confirmPassword": "Repeat password",
+    "auth.rules": "Username: 3–30 letters, digits, “.”, “_” or “-”. Password: at least 8 characters.", "auth.signingIn": "Signing in…", "auth.creating": "Creating account…",
+    "auth.required": "Enter your username and password.", "auth.usernameLength": "Username must be 3–30 characters.", "auth.usernameChars": "Username can contain only letters, digits, “.”, “_” or “-”.",
+    "auth.passwordShort": "Password must be at least 8 characters.", "auth.passwordLong": "Password is too long (maximum 72 bytes).", "auth.mismatch": "The two passwords do not match.",
+    "auth.expired": "Your session has expired or you are not signed in. Please sign in again.", "auth.loggedOut": "You have been signed out.",
+    "auth.signedInAs": "Signed in as {name}", "auth.admin": "admin", "auth.logout": "Log out",
     "forecast.settings": "Forecast settings", "forecast.splitsCaption": "Chronological splits used for evaluation", "forecast.comparisonCaption": "Validation errors by model (lower is better)", "forecast.backtestCaption": "Held-out actual values and predictions", "forecast.futureCaption": "Future point forecasts",
   });
   Object.assign(dictionaries.vi, {
-    "footer.project": "Revenue Analytics · Nhóm 6 · Thiết kế và Lập trình Web", "footer.privacy": "Bộ dữ liệu và biểu đồ đã lưu được lưu trong cơ sở dữ liệu trên máy chủ.",
+    "footer.project": "Revenue Analytics · Nhóm 6 · Thiết kế và Lập trình Web", "footer.privacy": "Bộ dữ liệu và biểu đồ đã lưu được lưu trong cơ sở dữ liệu và chỉ tài khoản của bạn xem được.",
     "data.notCsv": "Chỉ hỗ trợ tệp .csv. Hãy chọn một tệp CSV.", "data.emptyFile": "Tệp đã chọn đang trống.", "data.tooLarge": "Tệp này có dung lượng {size} MB; tối đa là {max} MB.",
     "data.previewCaption": "Giá trị gốc, hàng {start}–{end} trên {total}", "data.semanticCaption": "Kiểu và vai trò phát hiện được và cuối cùng của từng cột",
     "visual.chartPreview": "Khung xem trước biểu đồ. Hãy tạo biểu đồ để có mô tả tại đây.",
     "data.savedDatasets": "Bộ dữ liệu đã lưu", "data.chooseSaved": "Chọn một bộ dữ liệu đã lưu", "data.deleteDataset": "Xóa bộ dữ liệu", "data.confirmDelete": "Xóa “{name}” cùng các biểu đồ đã lưu? Thao tác này không thể hoàn tác.", "data.deleted": "Đã xóa “{name}” cùng các biểu đồ đã lưu.", "data.loading": "Đang tải bộ dữ liệu…", "data.libraryError": "Không tải được danh sách bộ dữ liệu: {error}", "data.saveError": "Không lưu được thay đổi: {error}",
     "visual.saveError": "Không lưu được thay đổi của bảng điều khiển: {error}",
+    "page.login": "Đăng nhập · Revenue Analytics", "auth.eyebrow": "Tài khoản", "auth.title": "Đăng nhập vào không gian làm việc", "auth.intro": "Bộ dữ liệu và bảng điều khiển chỉ tài khoản của bạn xem được.",
+    "auth.signIn": "Đăng nhập", "auth.register": "Tạo tài khoản", "auth.registerButton": "Tạo tài khoản", "auth.username": "Tên đăng nhập", "auth.password": "Mật khẩu", "auth.confirmPassword": "Nhập lại mật khẩu",
+    "auth.rules": "Tên đăng nhập: 3–30 chữ cái, chữ số, “.”, “_” hoặc “-”. Mật khẩu: ít nhất 8 ký tự.", "auth.signingIn": "Đang đăng nhập…", "auth.creating": "Đang tạo tài khoản…",
+    "auth.required": "Hãy nhập tên đăng nhập và mật khẩu.", "auth.usernameLength": "Tên đăng nhập phải dài 3–30 ký tự.", "auth.usernameChars": "Tên đăng nhập chỉ gồm chữ cái, chữ số, “.”, “_” hoặc “-”.",
+    "auth.passwordShort": "Mật khẩu phải có ít nhất 8 ký tự.", "auth.passwordLong": "Mật khẩu quá dài (tối đa 72 byte).", "auth.mismatch": "Hai mật khẩu không khớp.",
+    "auth.expired": "Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập. Hãy đăng nhập lại.", "auth.loggedOut": "Bạn đã đăng xuất.",
+    "auth.signedInAs": "Đăng nhập: {name}", "auth.admin": "quản trị", "auth.logout": "Đăng xuất",
     "forecast.settings": "Cấu hình dự báo", "forecast.splitsCaption": "Các phần chia theo thời gian dùng để đánh giá", "forecast.comparisonCaption": "Sai số xác thực theo mô hình (càng thấp càng tốt)", "forecast.backtestCaption": "Giá trị thực tế giữ lại và dự đoán", "forecast.futureCaption": "Dự báo điểm tương lai",
   });
 

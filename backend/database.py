@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 from sqlmodel import Session, SQLModel, create_engine
 
 from backend.config import DATABASE_URL
@@ -39,6 +39,21 @@ def create_db_and_tables() -> None:
     if engine.url.drivername.startswith("sqlite") and engine.url.database not in (None, "", ":memory:"):
         Path(engine.url.database).parent.mkdir(parents=True, exist_ok=True)
     SQLModel.metadata.create_all(engine)
+    check_schema()
+
+
+def check_schema() -> None:
+    """Stop with a clear message if an existing table lacks columns the code expects."""
+
+    inspector = inspect(engine)
+    for table in SQLModel.metadata.sorted_tables:
+        existing = {column["name"] for column in inspector.get_columns(table.name)}
+        missing = [column.name for column in table.columns if column.name not in existing]
+        if missing:
+            raise RuntimeError(
+                f"Table {table.name!r} is missing column(s) {', '.join(missing)}: the database was created by an "
+                "older version of the app. In development, delete data/app.db and restart; otherwise migrate it."
+            )
 
 
 def get_session() -> Iterator[Session]:

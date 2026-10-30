@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Data · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=database-1">
+  <link rel="stylesheet" href="css/style.css?v=auth-1">
 </head>
 <body data-page-title="page.data">
   <header class="app-header">
@@ -16,7 +16,7 @@
         <a href="visualize.html" data-page="visualize" data-i18n="nav.visualize">Visualize</a>
         <a href="forecast.html" data-page="forecast" data-i18n="nav.forecast">Forecast</a>
       </nav>
-      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span><span id="currentUser" class="user-indicator" hidden></span><button id="logoutButton" class="button-secondary header-button" type="button" hidden data-i18n="auth.logout">Log out</button></div>
     </div>
   </header>
 
@@ -76,15 +76,16 @@
   <footer class="app-footer">
     <div class="footer-inner">
       <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
-      <p data-i18n="footer.privacy">Datasets and saved visuals are stored in the project database on the server.</p>
+      <p data-i18n="footer.privacy">Datasets and saved visuals are stored in the project database and visible only to your account.</p>
     </div>
   </footer>
 
-  <script src="js/state.js?v=database-1" defer></script>
+  <script src="js/state.js?v=auth-1" defer></script>
   <script src="js/semantic.js" defer></script>
-  <script src="js/api.js?v=database-1" defer></script>
-  <script src="js/i18n.js?v=database-1" defer></script>
-  <script src="js/ui.js?v=language-1" defer></script>
-  <script src="js/data.js?v=database-1" defer></script>
+  <script src="js/auth.js?v=auth-1" defer></script>
+  <script src="js/api.js?v=auth-1" defer></script>
+  <script src="js/i18n.js?v=auth-1" defer></script>
+  <script src="js/ui.js?v=auth-1" defer></script>
+  <script src="js/data.js?v=auth-1" defer></script>
 </body>
 </html>

@@ -25,6 +25,11 @@ class ChartType(str, Enum):
     scatter = "scatter"
 
 
+class Role(str, Enum):
+    user = "user"
+    admin = "admin"
+
+
 class Aggregation(str, Enum):
     sum = "sum"
     average = "average"
@@ -35,10 +40,35 @@ class Aggregation(str, Enum):
 
 # ---------- Tables ----------
 
+class UserBase(SQLModel):
+    username: str = Field(index=True, unique=True, min_length=3, max_length=30)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        # Case-insensitive usernames: "Alice" and "alice" are the same account.
+        value = value.strip().lower()
+        if not all(character.isascii() and (character.isalnum() or character in "._-") for character in value):
+            raise ValueError("use only letters, digits, '.', '_' or '-'")
+        return value
+
+
+class User(UserBase, table=True):
+    """An account. Only the bcrypt hash of the password is stored."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    hashed_password: str
+    role: Role = Role.user
+    created_at: datetime = Field(default_factory=utc_now)
+
+    datasets: list["Dataset"] = Relationship(back_populates="owner", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+
+
 class Dataset(SQLModel, table=True):
     """One uploaded CSV: parsed rows, the user's semantic review and its visuals."""
 
     id: int | None = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
     filename: str = Field(max_length=255)
     rows: int = Field(ge=0)
     columns: list[str] = Field(sa_column=Column(JSON, nullable=False))
@@ -51,6 +81,7 @@ class Dataset(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
+    owner: User | None = Relationship(back_populates="datasets")
     visuals: list["Visual"] = Relationship(
         back_populates="dataset",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "Visual.position"},
@@ -76,12 +107,44 @@ def as_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
+# ---------- Account schemas ----------
+
+class UserCreate(UserBase):
+    """Registration body: no role field, so nobody can make themselves an admin."""
+
+    password: str = Field(min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def fits_bcrypt(cls, value: str) -> str:
+        # bcrypt ignores everything after 72 bytes; Vietnamese letters can take 3 bytes each.
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("must be at most 72 bytes")
+        return value
+
+
+class UserPublic(UserBase):
+    """What the API returns about an account: never the password or its hash."""
+
+    id: int
+    role: Role
+    created_at: datetime
+
+    _utc = field_validator("created_at")(as_utc)
+
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 # ---------- Dataset schemas ----------
 
 class DatasetSummary(SQLModel):
     """List view: everything except the (potentially large) row data."""
 
     id: int
+    owner_id: int
     filename: str
     rows: int
     columns: list[str]
