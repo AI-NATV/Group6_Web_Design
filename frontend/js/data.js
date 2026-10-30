@@ -1,5 +1,7 @@
 const DataWorkspace = (() => {
   const ROWS_PER_PAGE = 20;
+  // Mirrors the server default (MAX_FILE_SIZE_BYTES). The server still re-validates every upload.
+  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
   let currentPage = 1;
 
   function datasetState() {
@@ -44,13 +46,18 @@ const DataWorkspace = (() => {
     currentPage = Math.min(Math.max(currentPage, 1), pageCount);
     const start = (currentPage - 1) * ROWS_PER_PAGE;
     const rows = (dataset.rawData || dataset.data).slice(start, start + ROWS_PER_PAGE);
+    const caption = I18n.t("data.previewCaption", {
+      start: UI.formatNumber(rows.length ? start + 1 : 0),
+      end: UI.formatNumber(start + rows.length),
+      total: UI.formatNumber(dataset.data.length),
+    });
     const headers = dataset.columns.map((column) => `<th scope="col">${UI.escapeHtml(column)}</th>`).join("");
     const body = rows.map((row) => `<tr>${dataset.columns.map((column) => (
       `<td>${UI.escapeHtml(row[column] ?? "")}</td>`
     )).join("")}</tr>`).join("");
 
     document.getElementById("datasetTable").innerHTML = `
-      <div class="table-scroll"><table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table></div>
+      <div class="table-scroll"><table><caption>${UI.escapeHtml(caption)}</caption><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table></div>
       <nav class="pagination" aria-label="Dataset preview pages">
         <button class="button-secondary" type="button" data-preview-page="previous" ${currentPage === 1 ? "disabled" : ""}>${I18n.t("common.previous")}</button>
         <span>${I18n.t("common.page", { current: currentPage, total: pageCount })}</span>
@@ -78,7 +85,7 @@ const DataWorkspace = (() => {
       </tr>`;
     }).join("");
     document.getElementById("semanticTable").innerHTML = `
-      <div class="table-scroll"><table><thead><tr><th>${I18n.t("common.column")}</th><th>${I18n.t("common.detectedType")}</th><th>${I18n.t("common.finalType")}</th><th>${I18n.t("common.recommendedRole")}</th><th>${I18n.t("common.finalRole")}</th><th>${I18n.t("common.confidence")}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      <div class="table-scroll"><table><caption>${I18n.t("data.semanticCaption")}</caption><thead><tr><th scope="col">${I18n.t("common.column")}</th><th scope="col">${I18n.t("common.detectedType")}</th><th scope="col">${I18n.t("common.finalType")}</th><th scope="col">${I18n.t("common.recommendedRole")}</th><th scope="col">${I18n.t("common.finalRole")}</th><th scope="col">${I18n.t("common.confidence")}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
   function hasValue(value) {
@@ -145,12 +152,25 @@ const DataWorkspace = (() => {
     UI.setMessage("qualityMessage", I18n.t("data.removedMissing", { count: removed, suffix: removed === 1 ? "" : "s" }));
   }
 
-  async function uploadSelectedFile() {
+  function fileError(file) {
+    if (!file) return I18n.t("data.chooseFile");
+    if (!file.name.toLowerCase().endsWith(".csv")) return I18n.t("data.notCsv");
+    if (file.size === 0) return I18n.t("data.emptyFile");
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const toMegabytes = (bytes) => UI.formatNumber(bytes / (1024 * 1024));
+      return I18n.t("data.tooLarge", { size: toMegabytes(file.size), max: toMegabytes(MAX_FILE_SIZE_BYTES) });
+    }
+    return "";
+  }
+
+  async function uploadSelectedFile(event) {
+    event.preventDefault();
     const input = document.getElementById("fileInput");
     const button = document.getElementById("uploadButton");
     const file = input.files?.[0];
-    if (!file) {
-      UI.setMessage("uploadMessage", I18n.t("data.chooseFile"), "error");
+    const error = fileError(file);
+    if (error) {
+      UI.setMessage("uploadMessage", error, "error");
       return;
     }
 
@@ -173,7 +193,11 @@ const DataWorkspace = (() => {
   }
 
   function bindEvents() {
-    document.getElementById("uploadButton").addEventListener("click", uploadSelectedFile);
+    document.getElementById("uploadForm").addEventListener("submit", uploadSelectedFile);
+    document.getElementById("fileInput").addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      UI.setMessage("uploadMessage", file ? fileError(file) : "", "error");
+    });
     document.getElementById("datasetSelect").addEventListener("change", (event) => {
       AppState.selectDataset(event.target.value);
       currentPage = 1;

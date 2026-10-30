@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Visualize · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=language-1">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=checklist-1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body data-page-title="page.visualize">
   <header class="app-header">
@@ -17,7 +17,7 @@
         <a href="visualize.html" data-page="visualize" data-i18n="nav.visualize">Visualize</a>
         <a href="forecast.html" data-page="forecast" data-i18n="nav.forecast">Forecast</a>
       </nav>
-      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
     </div>
   </header>
 
@@ -27,7 +27,7 @@
       <div class="bi-layout">
         <section class="canvas-pane" aria-labelledby="canvasHeading">
           <div class="section-heading"><div><h2 id="canvasHeading" data-i18n="visual.canvas">Report canvas</h2><p class="muted" data-i18n="visual.canvasIntro">One active visual at a time. Generate explicitly when the fields are ready.</p></div></div>
-          <div class="active-chart-wrap"><canvas id="activeChart"></canvas></div>
+          <div class="active-chart-wrap"><canvas id="activeChart" role="img" aria-label="Chart preview" data-i18n-aria-label="visual.chartPreview"></canvas></div>
           <div id="builderMessage"></div>
           <div class="canvas-actions"><button id="generateChart" type="button" data-i18n="visual.generate">Generate chart</button><button id="addToDashboard" class="button-secondary" type="button" disabled data-i18n="visual.addDashboard">Add to dashboard</button></div>
         </section>
@@ -42,7 +42,7 @@
 
         <aside class="data-pane" aria-labelledby="dataFieldsHeading">
           <div class="section-heading"><h2 id="dataFieldsHeading" data-i18n="visual.data">Data</h2></div>
-          <label class="sr-only" for="fieldSearch" data-i18n="visual.search">Search fields</label><input id="fieldSearch" type="search" placeholder="Search fields" data-i18n-placeholder="visual.search">
+          <label class="sr-only" for="fieldSearch" data-i18n="visual.search">Search fields</label><input id="fieldSearch" name="field_search" type="search" placeholder="Search fields" data-i18n-placeholder="visual.search">
           <p class="muted small" data-i18n="visual.fieldIntro">Drag or select a field. Type and role come from your Data review.</p>
           <div id="dataFields" class="data-fields" aria-live="polite"></div>
         </aside>
@@ -56,11 +56,18 @@
     </div>
   </main>
 
-  <script src="js/state.js?v=session-library-1"></script>
-  <script src="js/semantic.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/i18n.js?v=language-1"></script>
-  <script src="js/ui.js?v=language-1"></script>
-  <script src="js/visualize.js?v=language-1"></script>
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
+      <p data-i18n="footer.privacy">Datasets stay in this browser session; the server does not store them.</p>
+    </div>
+  </footer>
+
+  <script src="js/state.js?v=session-library-1" defer></script>
+  <script src="js/semantic.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/i18n.js?v=checklist-1" defer></script>
+  <script src="js/ui.js?v=language-1" defer></script>
+  <script src="js/visualize.js?v=checklist-1" defer></script>
 </body>
 </html>

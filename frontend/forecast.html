@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Forecast · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=language-1">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=checklist-1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body data-page-title="page.forecast">
   <header class="app-header">
@@ -17,7 +17,7 @@
         <a href="visualize.html" data-page="visualize" data-i18n="nav.visualize">Visualize</a>
         <a href="forecast.html" data-page="forecast" data-i18n="nav.forecast">Forecast</a>
       </nav>
-      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="activeDataset" class="dataset-indicator">No active dataset</span><span id="apiStatus" class="status">Checking API…</span></div>
     </div>
   </header>
 
@@ -41,14 +41,15 @@
         <p class="muted" data-i18n="forecast.oneSeries">One series per run. The only input to each model is past target values; other columns are not used as predictors.</p>
         <form id="forecastForm">
           <fieldset id="forecastControls" class="forecast-controls">
+            <legend class="sr-only" data-i18n="forecast.settings">Forecast settings</legend>
             <div class="forecast-form-grid">
-              <label><span data-i18n="forecast.time">Time column</span><select id="forecastTime" required></select></label>
-              <label><span data-i18n="forecast.target">Target to predict</span><select id="forecastTarget" required></select></label>
-              <label><span data-i18n="forecast.horizon">Horizon (number of periods)</span><input id="forecastHorizon" type="number" min="1" max="90" value="7" required></label>
-              <label><span data-i18n="forecast.frequency">Frequency</span><select id="forecastFrequency"><option value="auto" data-i18n="forecast.detect">Detect from dates</option><option value="daily" data-i18n="forecast.daily">Daily (complete calendar days)</option><option value="weekly" data-i18n="forecast.weekly">Weekly (every 7 days)</option><option value="monthly" data-i18n="forecast.monthly">Monthly (same day or month end)</option><option value="observations" data-i18n="forecast.observations">Observation steps (e.g. trading sessions)</option></select></label>
-              <label><span data-i18n="forecast.missing">Invalid / missing values</span><select id="forecastMissing"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="drop" data-i18n="forecast.skip">Skip invalid rows</option></select></label>
-              <label><span data-i18n="forecast.duplicates">Multiple rows on the same date</span><select id="forecastDuplicates"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="sum" data-i18n="forecast.sum">Sum per date</option><option value="mean" data-i18n="forecast.mean">Mean per date</option></select></label>
-              <label><span data-i18n="forecast.season">Season length (0 = disabled)</span><input id="forecastSeason" type="number" min="0" max="365" value="0" required></label>
+              <label><span data-i18n="forecast.time">Time column</span><select id="forecastTime" name="time_column" required></select></label>
+              <label><span data-i18n="forecast.target">Target to predict</span><select id="forecastTarget" name="target_column" required></select></label>
+              <label><span data-i18n="forecast.horizon">Horizon (number of periods)</span><input id="forecastHorizon" name="horizon" type="number" min="1" max="90" value="7" required></label>
+              <label><span data-i18n="forecast.frequency">Frequency</span><select id="forecastFrequency" name="frequency"><option value="auto" data-i18n="forecast.detect">Detect from dates</option><option value="daily" data-i18n="forecast.daily">Daily (complete calendar days)</option><option value="weekly" data-i18n="forecast.weekly">Weekly (every 7 days)</option><option value="monthly" data-i18n="forecast.monthly">Monthly (same day or month end)</option><option value="observations" data-i18n="forecast.observations">Observation steps (e.g. trading sessions)</option></select></label>
+              <label><span data-i18n="forecast.missing">Invalid / missing values</span><select id="forecastMissing" name="missing_policy"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="drop" data-i18n="forecast.skip">Skip invalid rows</option></select></label>
+              <label><span data-i18n="forecast.duplicates">Multiple rows on the same date</span><select id="forecastDuplicates" name="duplicate_policy"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="sum" data-i18n="forecast.sum">Sum per date</option><option value="mean" data-i18n="forecast.mean">Mean per date</option></select></label>
+              <label><span data-i18n="forecast.season">Season length (0 = disabled)</span><input id="forecastSeason" name="season_length" type="number" min="0" max="365" value="0" required></label>
             </div>
             <p class="muted small" data-i18n="forecast.seasonHelp">Season length is measured in observations (e.g. 12 for monthly annual seasonality). Only enable it when the repeating cycle makes sense. Dates must be normalized as YYYY-MM-DD; targets must be numeric.</p>
             <p id="forecastEligibility" class="message info" aria-live="polite"></p>
@@ -81,11 +82,18 @@
     </div>
   </main>
 
-  <script src="js/state.js?v=session-library-1"></script>
-  <script src="js/semantic.js"></script>
-  <script src="js/api.js?v=forecast-1"></script>
-  <script src="js/i18n.js?v=language-1"></script>
-  <script src="js/ui.js?v=language-1"></script>
-  <script src="js/forecast.js?v=language-1"></script>
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
+      <p data-i18n="footer.privacy">Datasets stay in this browser session; the server does not store them.</p>
+    </div>
+  </footer>
+
+  <script src="js/state.js?v=session-library-1" defer></script>
+  <script src="js/semantic.js" defer></script>
+  <script src="js/api.js?v=forecast-1" defer></script>
+  <script src="js/i18n.js?v=checklist-1" defer></script>
+  <script src="js/ui.js?v=language-1" defer></script>
+  <script src="js/forecast.js?v=checklist-1" defer></script>
 </body>
 </html>

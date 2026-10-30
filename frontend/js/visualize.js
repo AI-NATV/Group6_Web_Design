@@ -20,6 +20,13 @@ const VisualizeWorkspace = (() => {
     return workspaceState().semanticModel[column];
   }
 
+  function describeVisual(visual) {
+    const fieldsText = visual.chartType === "scatter"
+      ? `${visual.fields.y} vs ${visual.fields.x}`
+      : `${visual.aggregation.toUpperCase()} ${visual.fields.measure} by ${visual.fields.dimension}`;
+    return { title: t("visual.visual", { type: t(`visual.${visual.chartType}`) }), fields: fieldsText };
+  }
+
   function displayRole(metadata) {
     return metadata?.role?.replaceAll("_", " ") || t("common.unknown");
   }
@@ -43,11 +50,11 @@ const VisualizeWorkspace = (() => {
   }
 
   function well(slot, title, help) {
-    return `<section class="field-well" data-well="${slot}" tabindex="0" role="button" aria-label="${UI.escapeHtml(title)} field well. ${UI.escapeHtml(help)}">
+    return `<div class="field-well" data-well="${slot}" tabindex="0" role="button" aria-label="${UI.escapeHtml(title)} field well. ${UI.escapeHtml(help)}">
       <span class="well-label">${UI.escapeHtml(title)}</span>
       <span class="well-help">${UI.escapeHtml(help)}</span>
       <div class="well-value">${fieldChip(slot, fields[slot]) || t("visual.dropField")}</div>
-    </section>`;
+    </div>`;
   }
 
   function renderFieldWells() {
@@ -109,6 +116,7 @@ const VisualizeWorkspace = (() => {
       previewChart = null;
     }
     document.getElementById("addToDashboard").disabled = true;
+    document.getElementById("activeChart").setAttribute("aria-label", t("visual.chartPreview"));
   }
 
   function validationError() {
@@ -216,7 +224,10 @@ const VisualizeWorkspace = (() => {
     try {
       const configuration = chartConfiguration(visual, workspaceState().dataset);
       if (previewChart) previewChart.destroy();
-      previewChart = new Chart(document.getElementById("activeChart"), configuration);
+      const canvas = document.getElementById("activeChart");
+      const description = describeVisual(visual);
+      previewChart = new Chart(canvas, configuration);
+      canvas.setAttribute("aria-label", `${description.title}: ${description.fields}`);
       lastGeneratedVisual = visual;
       document.getElementById("addToDashboard").disabled = false;
       UI.setMessage("builderMessage", t("visual.chartGenerated"));
@@ -249,12 +260,15 @@ const VisualizeWorkspace = (() => {
     dashboardCharts = [];
     const { dashboard, dataset } = workspaceState();
     renderKpis();
-    document.getElementById("savedVisuals").innerHTML = dashboard.length ? dashboard.map((visual, index) => `
+    document.getElementById("savedVisuals").innerHTML = dashboard.length ? dashboard.map((visual, index) => {
+      const description = describeVisual(visual);
+      return `
       <article class="saved-visual">
-        <header><div><h3>${UI.escapeHtml(t("visual.visual", { type: t(`visual.${visual.chartType}`) }))}</h3><p>${UI.escapeHtml(visual.chartType === "scatter" ? `${visual.fields.y} vs ${visual.fields.x}` : `${visual.aggregation.toUpperCase()} ${visual.fields.measure} by ${visual.fields.dimension}`)}</p></div>
+        <header><div><h3>${UI.escapeHtml(description.title)}</h3><p>${UI.escapeHtml(description.fields)}</p></div>
           <div class="visual-actions"><button type="button" class="icon-button" data-move="up" data-visual-id="${visual.id}" ${index === 0 ? "disabled" : ""} aria-label="${UI.escapeHtml(t("visual.moveUp"))}">↑</button><button type="button" class="icon-button" data-move="down" data-visual-id="${visual.id}" ${index === dashboard.length - 1 ? "disabled" : ""} aria-label="${UI.escapeHtml(t("visual.moveDown"))}">↓</button><button type="button" class="icon-button danger" data-remove-visual="${visual.id}" aria-label="${UI.escapeHtml(t("visual.removeVisual"))}">×</button></div>
-        </header><div class="saved-chart-wrap"><canvas id="saved-chart-${visual.id}"></canvas></div>
-      </article>`).join("") : `<p class="muted dashboard-empty">${t("visual.dashboardEmpty")}</p>`;
+        </header><div class="saved-chart-wrap"><canvas id="saved-chart-${visual.id}" role="img" aria-label="${UI.escapeHtml(`${description.title}: ${description.fields}`)}"></canvas></div>
+      </article>`;
+    }).join("") : `<p class="muted dashboard-empty">${t("visual.dashboardEmpty")}</p>`;
 
     dashboard.forEach((visual) => {
       try {
