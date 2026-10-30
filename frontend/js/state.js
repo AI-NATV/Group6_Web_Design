@@ -1,165 +1,168 @@
-/* Session-scoped dataset library. Each upload owns its data, semantic review,
- * and dashboard so switching a dataset cannot mix incompatible fields. */
+/* The server database is the source of truth for datasets, their semantic
+ * review and their dashboards. This module keeps a copy of the active dataset
+ * in sessionStorage so the Data, Visualize and Forecast pages can read it
+ * synchronously after navigation; every change is saved to the API first. */
 const AppState = (() => {
-  const KEY = "revenue-analytics-session-v1";
+  const KEY = "revenue-analytics-active-v3";
+  const LEGACY_KEY = "revenue-analytics-session-v1";
 
-  const emptyStore = () => ({ version: 2, activeDatasetId: null, datasets: [] });
-  const createId = (prefix) => globalThis.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-  function normalizeStore(parsed) {
-    if (Array.isArray(parsed?.datasets)) {
-      const datasets = parsed.datasets.filter((entry) => entry?.id && entry?.dataset).map((entry) => ({
-        id: entry.id,
-        dataset: entry.dataset,
-        semanticModel: entry.semanticModel || {},
-        dashboard: Array.isArray(entry.dashboard) ? entry.dashboard : [],
-        createdAt: entry.createdAt || entry.dataset.updatedAt || new Date().toISOString(),
-      }));
-      const activeDatasetId = datasets.some((entry) => entry.id === parsed.activeDatasetId)
-        ? parsed.activeDatasetId
-        : datasets.at(-1)?.id || null;
-      return { version: 2, activeDatasetId, datasets };
-    }
-    // Transparently retain the single dataset from earlier versions.
-    if (parsed?.dataset) {
-      const id = createId("dataset");
-      return {
-        version: 2,
-        activeDatasetId: id,
-        datasets: [{ id, dataset: parsed.dataset, semanticModel: parsed.semanticModel || {}, dashboard: Array.isArray(parsed.dashboard) ? parsed.dashboard : [], createdAt: parsed.dataset.updatedAt || new Date().toISOString() }],
-      };
-    }
-    return emptyStore();
+  // Earlier versions kept every dataset in the browser; free that space.
+  try {
+    sessionStorage.removeItem(LEGACY_KEY);
+  } catch {
+    // Storage can be unavailable (e.g. blocked site data); the cache below copes with that.
   }
 
-  function readStore() {
+  const sameId = (left, right) => String(left) === String(right);
+
+  function readCache() {
     try {
-      const stored = sessionStorage.getItem(KEY);
-      return stored ? normalizeStore(JSON.parse(stored)) : emptyStore();
+      const stored = JSON.parse(sessionStorage.getItem(KEY));
+      return stored?.dataset?.id ? stored : null;
     } catch {
-      return emptyStore();
+      return null;
     }
   }
 
-  function writeStore(next) {
+  function writeCache(entry) {
     try {
-      sessionStorage.setItem(KEY, JSON.stringify(next));
+      sessionStorage.setItem(KEY, JSON.stringify(entry));
     } catch (error) {
       if (error?.name === "QuotaExceededError") {
-        throw new Error("This browser session has no space for another dataset. Use smaller CSV files or start a new browser session.");
+        throw new Error("The dataset is saved on the server, but it is too large for this browser's session storage. Use a smaller CSV file.");
       }
-      throw new Error("The browser could not save this dataset for the other workspaces.");
+      throw new Error("The browser could not keep this dataset for the other workspaces.");
     }
-    return project(next);
+    return project(entry);
   }
 
-  function activeEntry(store) {
-    return store.datasets.find((entry) => entry.id === store.activeDatasetId) || null;
-  }
-
-  function summaries(store) {
-    return store.datasets.map((entry) => ({
-      id: entry.id,
-      filename: entry.dataset.filename,
-      rows: entry.dataset.rows,
-      columns: entry.dataset.columns.length,
-      createdAt: entry.createdAt,
-      updatedAt: entry.dataset.updatedAt || entry.createdAt,
-    }));
-  }
-
-  function project(store) {
-    const active = activeEntry(store);
+  function project(entry) {
     return {
-      dataset: active?.dataset || null,
-      semanticModel: active?.semanticModel || {},
-      dashboard: active?.dashboard || [],
-      activeDatasetId: store.activeDatasetId,
-      datasets: summaries(store),
+      dataset: entry?.dataset || null,
+      semanticModel: entry?.semanticModel || {},
+      dashboard: entry?.dashboard || [],
+      activeDatasetId: entry?.dataset?.id ?? null,
     };
   }
 
+  function toVisual(visual) {
+    return {
+      id: visual.id,
+      chartType: visual.chart_type,
+      fields: visual.fields,
+      aggregation: visual.aggregation,
+      createdAt: visual.created_at,
+    };
+  }
+
+  function toEntry(dataset, visuals) {
+    return {
+      dataset: {
+        id: dataset.id,
+        filename: dataset.filename,
+        rows: dataset.rows,
+        columns: dataset.columns,
+        data: dataset.data,
+        rawData: dataset.raw_data || dataset.data,
+        profiles: dataset.profiles || {},
+        createdAt: dataset.created_at,
+        updatedAt: dataset.updated_at,
+      },
+      semanticModel: dataset.semantic_model || {},
+      dashboard: visuals.map(toVisual),
+    };
+  }
+
+  // Datasets added outside the UI (e.g. the seed script) have no semantic review yet.
+  async function withSemanticReview(dataset) {
+    if (Object.keys(dataset.semantic_model || {}).length) return dataset;
+    const semanticModel = Semantic.analyze(dataset.data, dataset.columns, dataset.profiles || {});
+    return Api.updateDataset(dataset.id, { semantic_model: semanticModel });
+  }
+
+  function requireActive() {
+    const entry = readCache();
+    if (!entry) throw new Error("Choose a dataset first.");
+    return entry;
+  }
+
   function read() {
-    return project(readStore());
+    return project(readCache());
   }
 
   function activeDataset() {
     return read().dataset;
   }
 
-  function setDataset(dataset, semanticModel) {
-    const store = readStore();
-    const now = new Date().toISOString();
-    const normalized = {
-      filename: dataset.filename,
-      rows: dataset.rows,
-      columns: dataset.columns,
-      data: dataset.data,
-      rawData: dataset.raw_data || dataset.data,
-      profiles: dataset.profiles || {},
-      updatedAt: now,
-    };
-    const id = createId("dataset");
-    store.datasets.push({ id, dataset: normalized, semanticModel, dashboard: [], createdAt: now });
-    store.activeDatasetId = id;
-    return writeStore(store);
+  async function create(file) {
+    const dataset = await withSemanticReview(await Api.createDataset(file));
+    return writeCache(toEntry(dataset, []));
   }
 
-  function selectDataset(id) {
-    const store = readStore();
-    if (!store.datasets.some((entry) => entry.id === id)) return project(store);
-    store.activeDatasetId = id;
-    return writeStore(store);
+  async function load(id) {
+    const [dataset, visuals] = await Promise.all([Api.getDataset(id), Api.listVisuals(id)]);
+    return writeCache(toEntry(await withSemanticReview(dataset), visuals));
   }
 
-  function updateActive(mutator) {
-    const store = readStore();
-    const active = activeEntry(store);
-    if (!active) return project(store);
-    mutator(active);
-    return writeStore(store);
+  async function updateSemantic(column, property, value) {
+    const entry = requireActive();
+    if (!entry.semanticModel[column]) return project(entry);
+    const semanticModel = structuredClone(entry.semanticModel);
+    semanticModel[column][property] = value;
+    semanticModel[column].confidence = "user-reviewed";
+    const saved = await Api.updateDataset(entry.dataset.id, { semantic_model: semanticModel });
+    entry.semanticModel = saved.semantic_model;
+    entry.dataset.updatedAt = saved.updated_at;
+    return writeCache(entry);
   }
 
-  function updateSemantic(column, property, value) {
-    return updateActive((active) => {
-      if (!active.semanticModel[column]) return;
-      active.semanticModel[column][property] = value;
-      active.semanticModel[column].confidence = "user-reviewed";
+  async function replaceRows(rows) {
+    const entry = requireActive();
+    const saved = await Api.updateDataset(entry.dataset.id, { data: rows });
+    entry.dataset.data = saved.data;
+    entry.dataset.rows = saved.rows;
+    entry.dataset.updatedAt = saved.updated_at;
+    return writeCache(entry);
+  }
+
+  async function addVisual(visual) {
+    const entry = requireActive();
+    const saved = await Api.createVisual(entry.dataset.id, {
+      chart_type: visual.chartType, fields: visual.fields, aggregation: visual.aggregation,
     });
+    entry.dashboard.push(toVisual(saved));
+    return writeCache(entry);
   }
 
-  function replaceRows(rows) {
-    return updateActive((active) => {
-      active.dataset.data = rows;
-      active.dataset.rows = rows.length;
-      active.dataset.updatedAt = new Date().toISOString();
-    });
+  async function removeVisual(id) {
+    const entry = requireActive();
+    await Api.deleteVisual(id);
+    entry.dashboard = entry.dashboard.filter((visual) => !sameId(visual.id, id));
+    return writeCache(entry);
   }
 
-  function addVisual(visual) {
-    return updateActive((active) => {
-      active.dashboard.push({ ...visual, id: createId("visual"), createdAt: new Date().toISOString() });
-    });
+  async function moveVisual(id, direction) {
+    const entry = requireActive();
+    const index = entry.dashboard.findIndex((visual) => sameId(visual.id, id));
+    const destination = index + direction;
+    if (index < 0 || destination < 0 || destination >= entry.dashboard.length) return project(entry);
+    await Api.moveVisual(id, destination);
+    entry.dashboard = (await Api.listVisuals(entry.dataset.id)).map(toVisual);
+    return writeCache(entry);
   }
 
-  function removeVisual(id) {
-    return updateActive((active) => {
-      active.dashboard = active.dashboard.filter((visual) => visual.id !== id);
-    });
-  }
-
-  function moveVisual(id, direction) {
-    return updateActive((active) => {
-      const index = active.dashboard.findIndex((visual) => visual.id === id);
-      const destination = index + direction;
-      if (index < 0 || destination < 0 || destination >= active.dashboard.length) return;
-      [active.dashboard[index], active.dashboard[destination]] = [active.dashboard[destination], active.dashboard[index]];
-    });
+  async function deleteDataset(id) {
+    await Api.deleteDataset(id);
+    if (sameId(readCache()?.dataset.id, id)) clear();
   }
 
   function clear() {
-    sessionStorage.removeItem(KEY);
+    try {
+      sessionStorage.removeItem(KEY);
+    } catch {
+      // Nothing cached.
+    }
   }
 
-  return { read, activeDataset, setDataset, selectDataset, updateSemantic, replaceRows, addVisual, removeVisual, moveVisual, clear };
+  return { read, activeDataset, create, load, updateSemantic, replaceRows, addVisual, removeVisual, moveVisual, deleteDataset, clear };
 })();

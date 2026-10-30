@@ -5,15 +5,17 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import ALLOWED_ORIGINS, MAX_FILE_SIZE
-from backend.models import DatasetUploadResponse, ForecastRequest, ForecastResponse, HealthResponse
-from backend.services.csv_service import CsvValidationError, parse_csv
+from backend.config import ALLOWED_ORIGINS
+from backend.database import create_db_and_tables
+from backend.models import ForecastRequest, ForecastResponse, HealthResponse
+from backend.routers import datasets, visuals
 from backend.services.forecast_service import ForecastValidationError, run_forecast
 
 
@@ -21,16 +23,30 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("revenue_analytics")
 FRONTEND_DIRECTORY = Path(__file__).resolve().parent.parent / "frontend"
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    create_db_and_tables()
+    yield
+
+
 app = FastAPI(
     title="Revenue Analytics API",
-    version="0.4.0",
-    description="CSV analytics and univariate forecasts with chronological validation and held-out testing.",
+    version="0.5.0",
+    description="Saved CSV datasets and dashboards, plus univariate forecasts with chronological validation and held-out testing.",
+    lifespan=lifespan,
+    openapi_tags=[
+        {"name": "datasets", "description": "Upload CSV files and manage the saved datasets."},
+        {"name": "visuals", "description": "Charts saved on a dataset's dashboard."},
+        {"name": "forecast", "description": "Stateless forecasts computed from the posted observations."},
+        {"name": "health", "description": "Service status."},
+    ],
 )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "X-Request-ID"],
 )
 
@@ -59,38 +75,6 @@ def health_check() -> HealthResponse:
 
 
 @app.post(
-    "/upload",
-    response_model=DatasetUploadResponse,
-    tags=["datasets"],
-    summary="Upload and validate a CSV dataset",
-)
-async def upload_dataset(file: UploadFile = File(...)) -> DatasetUploadResponse:
-    filename = file.filename or ""
-    if not filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
-
-    contents = await file.read()
-    if not contents:
-        raise HTTPException(status_code=400, detail="CSV file is empty.")
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="CSV file is too large (maximum 10 MB).")
-
-    try:
-        columns, records, raw_records, profiles = parse_csv(contents)
-    except CsvValidationError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-
-    return DatasetUploadResponse(
-        filename=filename,
-        rows=len(records),
-        columns=columns,
-        data=records,
-        raw_data=raw_records,
-        profiles=profiles,
-    )
-
-
-@app.post(
     "/forecast",
     response_model=ForecastResponse,
     tags=["forecast"],
@@ -102,6 +86,9 @@ def forecast(payload: ForecastRequest) -> ForecastResponse:
     except ForecastValidationError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
+
+app.include_router(datasets.router, prefix="/api/v1")
+app.include_router(visuals.router, prefix="/api/v1")
 
 # Same-origin local development option: http://127.0.0.1:8000/app/
 app.mount("/app", StaticFiles(directory=str(FRONTEND_DIRECTORY), html=True), name="frontend")

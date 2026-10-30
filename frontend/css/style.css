@@ -383,6 +383,21 @@ a {
   font-size: .82rem;
 }
 
+.dataset-library .button-danger {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.button-danger {
+  border: 1px solid #fecaca;
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #fecaca;
+}
+
 .file-picker {
   display: inline-flex;
   align-items: center;

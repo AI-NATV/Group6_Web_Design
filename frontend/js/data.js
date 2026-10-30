@@ -3,6 +3,8 @@ const DataWorkspace = (() => {
   // Mirrors the server default (MAX_FILE_SIZE_BYTES). The server still re-validates every upload.
   const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
   let currentPage = 1;
+  let library = [];
+  let busy = false;
 
   function datasetState() {
     return AppState.read();
@@ -11,6 +13,7 @@ const DataWorkspace = (() => {
   function renderWorkspace() {
     const state = datasetState();
     renderDatasetLibrary(state);
+    UI.renderDatasetIndicator();
     const hasDataset = Boolean(state.dataset);
     document.getElementById("datasetWorkspace").hidden = !hasDataset;
     if (!hasDataset) return;
@@ -19,18 +22,55 @@ const DataWorkspace = (() => {
     renderPreview(state.dataset);
     renderSemanticReview(state.dataset, state.semanticModel);
     renderQualityReport(state.dataset);
-    UI.renderDatasetIndicator();
+  }
+
+  function formatDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat(I18n.language() === "vi" ? "vi-VN" : "en-US", { dateStyle: "medium" }).format(date);
   }
 
   function renderDatasetLibrary(state) {
-    const library = document.getElementById("datasetLibrary");
+    const libraryElement = document.getElementById("datasetLibrary");
     const select = document.getElementById("datasetSelect");
-    const datasets = state.datasets || [];
-    library.hidden = datasets.length === 0;
-    select.innerHTML = datasets.map((dataset, index) => {
-      const label = `${dataset.filename} · ${I18n.t("common.rows", { count: UI.formatNumber(dataset.rows) })}`;
-      return `<option value="${UI.escapeHtml(dataset.id)}" ${dataset.id === state.activeDatasetId ? "selected" : ""}>${UI.escapeHtml(label)}</option>`;
+    libraryElement.hidden = library.length === 0;
+    const placeholder = state.activeDatasetId === null
+      ? `<option value="" selected>${UI.escapeHtml(I18n.t("data.chooseSaved"))}</option>`
+      : "";
+    select.innerHTML = placeholder + library.map((dataset) => {
+      const label = `${dataset.filename} · ${I18n.t("common.rows", { count: UI.formatNumber(dataset.rows) })} · ${formatDate(dataset.created_at)}`;
+      const selected = String(dataset.id) === String(state.activeDatasetId) ? "selected" : "";
+      return `<option value="${UI.escapeHtml(dataset.id)}" ${selected}>${UI.escapeHtml(label)}</option>`;
     }).join("");
+    select.disabled = busy;
+    document.getElementById("deleteDataset").disabled = busy || state.activeDatasetId === null;
+  }
+
+  async function refreshLibrary() {
+    try {
+      library = await Api.listDatasets();
+    } catch (error) {
+      library = [];
+      UI.setMessage("uploadMessage", I18n.t("data.libraryError", { error: error.message }), "error");
+      return;
+    }
+    // A dataset deleted elsewhere (another tab or teammate) must not stay active here.
+    const activeId = datasetState().activeDatasetId;
+    const listIsComplete = library.length < 100;
+    if (activeId !== null && listIsComplete && !library.some((dataset) => String(dataset.id) === String(activeId))) {
+      AppState.clear();
+    }
+  }
+
+  async function whileBusy(task) {
+    busy = true;
+    renderDatasetLibrary(datasetState());
+    try {
+      return await task();
+    } finally {
+      busy = false;
+      renderDatasetLibrary(datasetState());
+    }
   }
 
   function renderMetadata(dataset) {
@@ -126,6 +166,21 @@ const DataWorkspace = (() => {
       <div id="qualityMessage"></div>`;
   }
 
+  async function saveCleanedRows(rows, messageKey) {
+    const removed = datasetState().dataset.data.length - rows.length;
+    document.querySelectorAll("[data-clean]").forEach((button) => { button.disabled = true; });
+    try {
+      await AppState.replaceRows(rows);
+    } catch (error) {
+      renderWorkspace();
+      UI.setMessage("qualityMessage", I18n.t("data.saveError", { error: error.message }), "error");
+      return;
+    }
+    currentPage = 1;
+    renderWorkspace();
+    UI.setMessage("qualityMessage", I18n.t(messageKey, { count: removed, suffix: removed === 1 ? "" : "s" }));
+  }
+
   function removeDuplicates() {
     const { dataset } = datasetState();
     const known = new Set();
@@ -135,21 +190,13 @@ const DataWorkspace = (() => {
       known.add(key);
       return true;
     });
-    const removed = dataset.data.length - rows.length;
-    AppState.replaceRows(rows);
-    currentPage = 1;
-    renderWorkspace();
-    UI.setMessage("qualityMessage", I18n.t("data.removedDuplicates", { count: removed, suffix: removed === 1 ? "" : "s" }));
+    return saveCleanedRows(rows, "data.removedDuplicates");
   }
 
   function removeRowsWithMissingValues() {
     const { dataset } = datasetState();
     const rows = dataset.data.filter((row) => dataset.columns.every((column) => hasValue(row[column])));
-    const removed = dataset.data.length - rows.length;
-    AppState.replaceRows(rows);
-    currentPage = 1;
-    renderWorkspace();
-    UI.setMessage("qualityMessage", I18n.t("data.removedMissing", { count: removed, suffix: removed === 1 ? "" : "s" }));
+    return saveCleanedRows(rows, "data.removedMissing");
   }
 
   function fileError(file) {
@@ -178,9 +225,8 @@ const DataWorkspace = (() => {
     button.textContent = I18n.t("data.uploading");
     UI.setMessage("uploadMessage", I18n.t("data.analysing"), "info");
     try {
-      const dataset = await Api.upload(file);
-      const semanticModel = Semantic.analyze(dataset.data, dataset.columns, dataset.profiles);
-      AppState.setDataset(dataset, semanticModel);
+      await AppState.create(file);
+      await refreshLibrary();
       currentPage = 1;
       renderWorkspace();
       UI.setMessage("uploadMessage", I18n.t("data.saved"));
@@ -198,9 +244,33 @@ const DataWorkspace = (() => {
       const file = event.target.files?.[0];
       UI.setMessage("uploadMessage", file ? fileError(file) : "", "error");
     });
-    document.getElementById("datasetSelect").addEventListener("change", (event) => {
-      AppState.selectDataset(event.target.value);
-      currentPage = 1;
+    document.getElementById("datasetSelect").addEventListener("change", async (event) => {
+      // Read the choice before whileBusy re-renders the select.
+      const datasetId = event.target.value;
+      if (!datasetId) return;
+      UI.setMessage("libraryMessage", I18n.t("data.loading"), "info");
+      try {
+        await whileBusy(() => AppState.load(datasetId));
+        currentPage = 1;
+        UI.setMessage("libraryMessage", "");
+      } catch (error) {
+        UI.setMessage("libraryMessage", error.message, "error");
+      }
+      renderWorkspace();
+    });
+    document.getElementById("deleteDataset").addEventListener("click", async () => {
+      const { dataset } = datasetState();
+      if (!dataset || !window.confirm(I18n.t("data.confirmDelete", { name: dataset.filename }))) return;
+      try {
+        await whileBusy(async () => {
+          await AppState.deleteDataset(dataset.id);
+          await refreshLibrary();
+        });
+        UI.setMessage("libraryMessage", "");
+        UI.setMessage("uploadMessage", I18n.t("data.deleted", { name: dataset.filename }));
+      } catch (error) {
+        UI.setMessage("libraryMessage", error.message, "error");
+      }
       renderWorkspace();
     });
     document.getElementById("datasetTable").addEventListener("click", (event) => {
@@ -209,10 +279,17 @@ const DataWorkspace = (() => {
       currentPage += button.dataset.previewPage === "next" ? 1 : -1;
       renderPreview(datasetState().dataset);
     });
-    document.getElementById("semanticTable").addEventListener("change", (event) => {
+    document.getElementById("semanticTable").addEventListener("change", async (event) => {
       const select = event.target.closest("[data-semantic]");
       if (!select) return;
-      AppState.updateSemantic(select.dataset.column, select.dataset.semantic, select.value);
+      select.disabled = true;
+      try {
+        await AppState.updateSemantic(select.dataset.column, select.dataset.semantic, select.value);
+        UI.setMessage("semanticMessage", "");
+      } catch (error) {
+        // Re-rendering below restores the last saved value.
+        UI.setMessage("semanticMessage", I18n.t("data.saveError", { error: error.message }), "error");
+      }
       renderSemanticReview(datasetState().dataset, datasetState().semanticModel);
     });
     document.getElementById("qualityReport").addEventListener("click", (event) => {
@@ -223,9 +300,11 @@ const DataWorkspace = (() => {
     });
   }
 
-  function initialise() {
+  async function initialise() {
     UI.initialiseShell("data");
     bindEvents();
+    renderWorkspace();
+    await refreshLibrary();
     renderWorkspace();
   }
 

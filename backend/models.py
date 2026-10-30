@@ -12,17 +12,6 @@ class HealthResponse(BaseModel):
     service: str = "revenue-analytics-api"
 
 
-class DatasetUploadResponse(BaseModel):
-    filename: str
-    rows: int = Field(ge=0)
-    columns: list[str]
-    # ``data`` is the analysis-ready representation. ``raw_data`` is retained
-    # so the Data workspace can show users exactly what was in their file.
-    data: list[dict[str, Any]]
-    raw_data: list[dict[str, Any]]
-    profiles: dict[str, dict[str, Any]]
-
-
 class ForecastObservation(BaseModel):
     date: Any = None
     value: Any = None
