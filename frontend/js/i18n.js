@@ -68,6 +68,25 @@ const I18n = (() => {
     "forecast.settings": "Cấu hình dự báo", "forecast.splitsCaption": "Các phần chia theo thời gian dùng để đánh giá", "forecast.comparisonCaption": "Sai số xác thực theo mô hình (càng thấp càng tốt)", "forecast.backtestCaption": "Giá trị thực tế giữ lại và dự đoán", "forecast.futureCaption": "Dự báo điểm tương lai",
   });
 
+  Object.assign(dictionaries.en, {
+    "page.register": "Create account · Revenue Analytics",
+    "auth.registerTitle": "Create your account",
+    "auth.registerIntro": "Save datasets and dashboards privately in your workspace.",
+    "auth.newHere": "New here?",
+    "auth.createAccountLink": "Create an account",
+    "auth.alreadyMember": "Already have an account?",
+    "auth.signInLink": "Sign in",
+  });
+  Object.assign(dictionaries.vi, {
+    "page.register": "Tạo tài khoản · Revenue Analytics",
+    "auth.registerTitle": "Tạo tài khoản của bạn",
+    "auth.registerIntro": "Lưu bộ dữ liệu và bảng điều khiển riêng tư trong không gian làm việc của bạn.",
+    "auth.newHere": "Bạn chưa có tài khoản?",
+    "auth.createAccountLink": "Tạo tài khoản",
+    "auth.alreadyMember": "Bạn đã có tài khoản?",
+    "auth.signInLink": "Đăng nhập",
+  });
+
   function language() { return localStorage.getItem(STORAGE_KEY) === "vi" ? "vi" : "en"; }
   function t(key, variables = {}) {
     const phrase = dictionaries[language()][key] || dictionaries.en[key] || key;

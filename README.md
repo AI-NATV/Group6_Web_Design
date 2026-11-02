@@ -31,6 +31,8 @@ backend/
   security.py                 bcrypt hashing, JWT, get_current_user (CurrentUser), ownership checks
   database.py                 Engine, create_db_and_tables, get_session (SessionDep)
   db_models.py                SQLModel tables (User, Dataset, Visual) and their API schemas
+alembic.ini                   Alembic configuration
+migrations/                   Versioned database schema migrations
   routers/auth.py             /api/v1/register, /api/v1/token, /api/v1/me
   models.py                   Forecast request/response contracts
   routers/datasets.py         /api/v1/datasets: upload, list, read, update, delete
@@ -98,22 +100,28 @@ Every `/api/v1/datasets` and `/api/v1/visuals` route needs `Authorization: Beare
 
    On macOS/Linux use `export SECRET_KEY="..."`.
 
-4. Start the backend from the project root:
+4. Create the database schema from the initial migration:
+
+   ```powershell
+   alembic upgrade head
+   ```
+
+5. Start the backend from the project root:
 
    ```powershell
    uvicorn backend.main:app --reload
    ```
 
-   Tables are created on startup in `data/app.db` (git-ignored). Optionally create an admin and load the sample data for them:
+   The SQLite database is stored at `data/app.db` (git-ignored). Optionally create an admin and load the included 48-row sample dataset for them:
 
    ```powershell
    python -m backend.create_admin admin
    python -m backend.seed --owner admin
    ```
 
-5. Open [http://127.0.0.1:8000/app/](http://127.0.0.1:8000/app/) in a browser. This serves the frontend from the same FastAPI origin. Create an account (or sign in), upload a CSV or choose a dataset under **Saved datasets**, review the semantic recommendations, then open **Visualize**.
+6. Open [http://127.0.0.1:8000/app/](http://127.0.0.1:8000/app/) in a browser. This serves the frontend from the same FastAPI origin. Create an account (or sign in), upload a CSV or choose a dataset under **Saved datasets**, review the semantic recommendations, then open **Visualize**.
 
-**Upgrading from the version without accounts:** existing tables lack `owner_id`, and the server stops with a message saying so. In development, delete `data/app.db` and restart (saved datasets are lost; upload them again).
+**Existing local databases:** a database created before migrations does not contain Alembic's version table. Back it up first. In development, delete `data/app.db` and run `alembic upgrade head`. If an existing database has already been verified to match this exact initial schema, use `alembic stamp head` instead; do not run `upgrade` against already-created tables.
 
 API documentation is available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) and health status at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
 
@@ -135,7 +143,7 @@ $env:TEST_DATABASE_URL="postgresql+psycopg://app:change-me@localhost:5432/revenu
 
 Copy `.env.example` values into your deployment environment. `ALLOWED_ORIGINS` is a comma-separated allowlist; set it to the real HTTPS frontend origin(s) outside local development. `MAX_FILE_SIZE_BYTES` defaults to 10 MiB.
 
-`SECRET_KEY` is required (see Run locally); `ACCESS_TOKEN_EXPIRE_MINUTES` defaults to 30. `DATABASE_URL` defaults to `sqlite:///./data/app.db`. For PostgreSQL, install `psycopg[binary]` and set, for example, `DATABASE_URL=postgresql+psycopg://app:change-me@localhost:5432/revenue_analytics`. Keep real credentials in the environment, never in Git. Tables are created when missing; changing an existing table's columns needs a migration (for example with Alembic) or, in development only, deleting `data/app.db`.
+`SECRET_KEY` is required (see Run locally); `ACCESS_TOKEN_EXPIRE_MINUTES` defaults to 30. `DATABASE_URL` defaults to `sqlite:///./data/app.db`. For PostgreSQL, install `psycopg[binary]` and set, for example, `DATABASE_URL=postgresql+psycopg://app:change-me@localhost:5432/revenue_analytics`. Keep real credentials in the environment, never in Git. Apply schema changes with a new Alembic revision and `alembic upgrade head`.
 
 ## Forecast workflow
 
@@ -150,7 +158,7 @@ Models: last-value Naive, mean of the last 7 observations, damped Holt trend, an
 
 For horizon `h`, the last `3h` observations form two consecutive validation windows and one untouched test window. Each validation forecast uses an expanding training prefix and predicts all `h` steps without observing intervening actuals. Lowest pooled validation MAE selects the model; ties favor Naive. The selected model is evaluated on the final `h` observations, then refitted on all history to forecast beyond the last observation. Test performance never changes the chosen model.
 
-Eligibility requires at least `max(40, max(20, 2 × season_length) + 3 × horizon)` usable distinct dates, up to 50,000 input rows. The minimum is a product guardrail, not a statistical guarantee. The six-row `sample_sales.csv` intentionally fails this check. Use a longer historical series to test forecasting.
+Eligibility requires at least `max(40, max(20, 2 × season_length) + 3 × horizon)` usable distinct dates, up to 50,000 input rows. The minimum is a product guardrail, not a statistical guarantee. The included 48-row `sample_sales.csv` is sufficient for the default 7-period forecast; use a longer historical series for larger horizons.
 
 The endpoint is now `POST /forecast` with JSON (the old `?period=1week` demo contract is removed):
 
@@ -174,7 +182,7 @@ Method references: [chronological validation and benchmark methods](https://otex
 ## Current limitations
 
 - Access tokens cannot be revoked before they expire (no refresh tokens or server-side logout); keep `ACCESS_TOKEN_EXPIRE_MINUTES` short. There is no password reset or rate limiting on login yet.
-- Schema migrations (Alembic) are not set up; `create_all` only creates missing tables.
+- The initial Alembic revision covers the current three-table schema. Future schema changes still need a new reviewed migration before deployment.
 - Forecasting currently supports one date/target series per run, point estimates only. ARIMA/SARIMA, external predictors, grouped series, market calendars, prediction intervals and saved models are not implemented.
 - Import still uses heuristics for comma-only numeric notation and ambiguous dates; review the data before forecasting. Missing periods and multi-series datasets require user preparation. Poor backtest results are shown rather than hidden.
 - Chart.js is loaded from a CDN, so the visual workspaces need network access to that CDN unless it is vendored for deployment.

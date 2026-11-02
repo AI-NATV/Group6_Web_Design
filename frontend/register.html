@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base" content="auto">
+  <title>Create account · Revenue Analytics</title>
+  <link rel="stylesheet" href="css/style.css?v=footer-layout-1">
+</head>
+<body class="auth-page" data-page-title="page.register">
+  <header class="app-header">
+    <div class="header-inner">
+      <a class="brand" href="login.html"><span>Revenue</span> Analytics</a>
+      <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="apiStatus" class="status">Checking API…</span></div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="workspace-intro">
+      <p class="eyebrow" data-i18n="auth.eyebrow">Account</p>
+      <h1 data-i18n="auth.registerTitle">Create your account</h1>
+      <p data-i18n="auth.registerIntro">Save datasets and dashboards privately in your workspace.</p>
+    </section>
+
+    <div id="authMessage" aria-live="polite"></div>
+
+    <section class="card auth-card" aria-labelledby="registerHeading">
+      <h2 id="registerHeading" data-i18n="auth.register">Create an account</h2>
+      <form id="registerForm" class="auth-form" action="/api/v1/register" method="post" novalidate>
+        <label for="registerUsername" data-i18n="auth.username">Username</label>
+        <input id="registerUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9._\-]+" aria-describedby="registerRules">
+        <label for="registerPassword" data-i18n="auth.password">Password</label>
+        <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="registerRules">
+        <label for="registerConfirm" data-i18n="auth.confirmPassword">Repeat password</label>
+        <input id="registerConfirm" name="confirm_password" type="password" autocomplete="new-password" required minlength="8">
+        <p id="registerRules" class="muted small" data-i18n="auth.rules">Username: 3–30 letters, digits, “.”, “_” or “-”. Password: at least 8 characters.</p>
+        <button id="registerButton" type="submit" data-i18n="auth.registerButton">Create account</button>
+      </form>
+      <div class="auth-switch"><span data-i18n="auth.alreadyMember">Already have an account?</span><a href="login.html" class="auth-switch-link" data-i18n="auth.signInLink">Sign in</a></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
+      <p data-i18n="footer.privacy">Datasets and saved visuals are stored in the project database and visible only to your account.</p>
+    </div>
+  </footer>
+
+  <script src="js/state.js?v=auth-pages-1" defer></script>
+  <script src="js/auth.js?v=auth-pages-1" defer></script>
+  <script src="js/api.js?v=auth-pages-1" defer></script>
+  <script src="js/i18n.js?v=auth-pages-1" defer></script>
+  <script src="js/ui.js?v=auth-pages-1" defer></script>
+  <script src="js/login.js?v=auth-pages-1" defer></script>
+</body>
+</html>

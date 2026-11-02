@@ -73,8 +73,8 @@ const LoginPage = (() => {
     if (params.get("reason") === "expired") UI.setMessage("authMessage", t("auth.expired"), "warning");
     if (params.get("reason") === "loggedout") UI.setMessage("authMessage", t("auth.loggedOut"));
     UI.checkApiStatus();
-    el("loginForm").addEventListener("submit", onLogin);
-    el("registerForm").addEventListener("submit", onRegister);
+    el("loginForm")?.addEventListener("submit", onLogin);
+    el("registerForm")?.addEventListener("submit", onRegister);
   }
 
   return { initialise };
