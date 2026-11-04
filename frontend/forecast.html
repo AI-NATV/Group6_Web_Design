@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
   <title>Forecast · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=footer-layout-1">
+  <link rel="stylesheet" href="css/style.css?v=feature-assistant-1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
 </head>
 <body data-page-title="page.forecast">
@@ -38,7 +38,7 @@
             <dt data-i18n="forecast.season">Season length</dt><dd data-i18n="forecast.help.season">Leave 0 when you do not know that the series repeats. For example, use 12 for monthly data with annual seasonality.</dd>
           </dl>
         </aside>
-        <p class="muted" data-i18n="forecast.oneSeries">One series per run. The only input to each model is past target values; other columns are not used as predictors.</p>
+        <p class="muted" data-i18n="assistant.oneSeries">One series per run. Keep the existing baselines, or review historical numeric features to also compare Ridge regression.</p>
         <form id="forecastForm">
           <fieldset id="forecastControls" class="forecast-controls">
             <legend class="sr-only" data-i18n="forecast.settings">Forecast settings</legend>
@@ -50,16 +50,44 @@
               <label><span data-i18n="forecast.missing">Invalid / missing values</span><select id="forecastMissing" name="missing_policy"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="drop" data-i18n="forecast.skip">Skip invalid rows</option></select></label>
               <label><span data-i18n="forecast.duplicates">Multiple rows on the same date</span><select id="forecastDuplicates" name="duplicate_policy"><option value="error" data-i18n="forecast.stop">Stop and report (recommended)</option><option value="sum" data-i18n="forecast.sum">Sum per date</option><option value="mean" data-i18n="forecast.mean">Mean per date</option></select></label>
               <label><span data-i18n="forecast.season">Season length (0 = disabled)</span><input id="forecastSeason" name="season_length" type="number" min="0" max="365" value="0" required></label>
+              <label><span data-i18n="assistant.seriesColumn">Product / group column (optional)</span><select id="forecastSeriesColumn"></select></label>
+              <label id="forecastSeriesValueLabel" hidden><span data-i18n="assistant.seriesValue">Series to forecast</span><select id="forecastSeriesValue"></select></label>
             </div>
             <p class="muted small" data-i18n="forecast.seasonHelp">Season length is measured in observations (e.g. 12 for monthly annual seasonality). Only enable it when the repeating cycle makes sense. Dates must be normalized as YYYY-MM-DD; targets must be numeric.</p>
             <p id="forecastEligibility" class="message info" aria-live="polite"></p>
+            <section class="feature-assistant" aria-labelledby="featureAssistantHeading">
+              <h3 id="featureAssistantHeading" data-i18n="assistant.title">Feature assistant</h3>
+              <p class="muted small" data-i18n="assistant.intro">Rules and training statistics, not an external AI. Review suggestions, adjust your selection, then confirm before training.</p>
+              <button id="reviewFeatures" type="button" class="button-secondary" data-i18n="assistant.review">Review features</button>
+              <div id="featureReview" hidden>
+                <p id="featureReviewScope" class="muted small"></p>
+                <p class="message info" data-i18n="assistant.policy">Ridge uses target lags 1, 2, 3 and 7, a trailing 7-observation mean, and the last observed value of each selected feature to predict the whole horizon. It never reads future feature values. Missing feature values use training medians. Features must already be available at the forecast origin.</p>
+                <p class="muted small" data-i18n="assistant.caution">Lagged correlation is a screening clue, not feature importance or causation. Delayed reports, revised data and columns derived from future outcomes can still leak information: exclude them. With duplicate dates, the chosen Sum/Mean rule also applies to features.</p>
+                <div id="featureCandidates"></div>
+                <p id="featureSelectionCount" class="muted small" aria-live="polite"></p>
+                <label class="check-label"><input id="confirmFeatures" type="checkbox"><span data-i18n="assistant.confirm">I reviewed these features and confirm that their historical values were available at each forecast origin.</span></label>
+              </div>
+              <p id="featureReviewMessage" aria-live="polite"></p>
+            </section>
             <button id="runForecast" type="submit" data-i18n="forecast.run">Evaluate &amp; forecast</button>
           </fieldset>
         </form>
         <div id="forecastMessage" aria-live="polite"></div>
       </section>
       <div id="forecastResults" hidden>
-        <section class="card" aria-labelledby="forecastEvaluationHeading">
+        <section class="card" aria-labelledby="forecastInsightsHeading">
+          <h2 id="forecastInsightsHeading" data-i18n="assistant.insights">Report insights</h2>
+          <p class="muted small" data-i18n="assistant.insightsHelp">Historical summaries describe the full filtered series. The outlook is a model estimate, not a guarantee. Choose the sections to display; download the full report to keep this run.</p>
+          <div class="report-controls">
+            <label class="check-label"><input id="showInsights" type="checkbox" checked><span data-i18n="assistant.insights">Report insights</span></label>
+            <label class="check-label"><input id="showEvaluation" type="checkbox" checked><span data-i18n="assistant.evaluation">Model evaluation</span></label>
+            <label class="check-label"><input id="showFuture" type="checkbox" checked><span data-i18n="assistant.future">Future forecast</span></label>
+            <button id="downloadForecast" type="button" class="button-secondary" data-i18n="assistant.download">Download report (JSON)</button>
+          </div>
+          <div id="forecastInsights"></div>
+          <p id="forecastFeaturePlan" class="message info"></p>
+        </section>
+        <section id="forecastEvaluationSection" class="card" aria-labelledby="forecastEvaluationHeading">
           <h2 id="forecastEvaluationHeading" data-i18n="forecast.evaluation">2. Check performance on past data</h2>
           <p class="muted" data-i18n="forecast.evaluationIntro">Two expanding training windows predict the next full horizon. Lowest validation MAE selects the model. The final test window is kept separate from selection.</p>
           <div id="forecastSummary" class="stats"></div>
@@ -70,7 +98,7 @@
           <div class="forecast-chart-wrap"><canvas id="backtestChart" aria-label="Held-out actual values, selected model predictions and Naive baseline" data-i18n-aria-label="forecast.backtestChart" role="img"></canvas></div>
           <div id="backtestTable"></div>
         </section>
-        <section class="card" aria-labelledby="futureForecastHeading">
+        <section id="forecastFutureSection" class="card" aria-labelledby="futureForecastHeading">
           <h2 id="futureForecastHeading" data-i18n="forecast.future">3. Forecast beyond the uploaded history</h2>
           <p class="muted" data-i18n="forecast.futureIntro">The selected model is refitted on all usable history. These are point estimates; prediction intervals are not available yet.</p>
           <div id="forecastWarnings"></div>
@@ -92,9 +120,9 @@
   <script src="js/state.js?v=auth-1" defer></script>
   <script src="js/semantic.js" defer></script>
   <script src="js/auth.js?v=auth-1" defer></script>
-  <script src="js/api.js?v=auth-1" defer></script>
-  <script src="js/i18n.js?v=auth-1" defer></script>
+  <script src="js/api.js?v=feature-assistant-1" defer></script>
+  <script src="js/i18n.js?v=feature-assistant-1" defer></script>
   <script src="js/ui.js?v=auth-1" defer></script>
-  <script src="js/forecast.js?v=auth-1" defer></script>
+  <script src="js/forecast.js?v=feature-assistant-1" defer></script>
 </body>
 </html>

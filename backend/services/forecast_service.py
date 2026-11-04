@@ -163,7 +163,15 @@ def metrics(actual, predicted):
     return {"mae": fmean(abs(error) for error in errors), "rmse": math.sqrt(fmean(error ** 2 for error in errors))}
 
 
-def run_forecast(request: ForecastRequest):
+def run_forecast(request: ForecastRequest, extra_predictors=None):
+    # Optional trusted server-side predictors use exactly the same temporal splits.
+    # The public legacy endpoint does not supply any extra predictors.
+    extra_predictors = extra_predictors or {}
+    def forecast_with(name, prefix):
+        if name in extra_predictors:
+            return extra_predictors[name](prefix, request.horizon, request.season_length)
+        return predict(name, prefix, request.horizon, request.season_length)
+
     dates, values, frequency, warnings, quality = _prepare(request)
     horizon = request.horizon
     train_end = len(values) - 3 * horizon
@@ -171,11 +179,12 @@ def run_forecast(request: ForecastRequest):
     models = ["naive", "moving_average", "holt_damped"]
     if request.season_length:
         models.append("seasonal_naive")
+    models.extend(extra_predictors)
     comparison = []
     for name in models:
         actual, predicted, folds = [], [], []
         for origin in (train_end, train_end + horizon):
-            forecast, _ = predict(name, values[:origin], horizon, request.season_length)
+            forecast, _ = forecast_with(name, values[:origin])
             actual.extend(values[origin:origin + horizon])
             predicted.extend(forecast)
             folds.append({"train_start": dates[0].isoformat(), "train_end": dates[origin - 1].isoformat(),
@@ -184,13 +193,13 @@ def run_forecast(request: ForecastRequest):
         comparison.append({"model": name, "validation": metrics(actual, predicted), "folds": folds})
     # Stable ties favor the simplest baseline, Naive.
     selected = min(comparison, key=lambda item: item["validation"]["mae"])["model"]
-    test_predictions, _ = predict(selected, values[:test_start], horizon, request.season_length)
+    test_predictions, _ = forecast_with(selected, values[:test_start])
     naive_test, _ = predict("naive", values[:test_start], horizon)
     test_metrics = metrics(values[test_start:], test_predictions)
     naive_metrics = metrics(values[test_start:], naive_test)
     if test_metrics["mae"] >= naive_metrics["mae"] and selected != "naive":
         warnings.append("The selected model did not beat Naive on the held-out test. Selection still uses validation only.")
-    future, parameters = predict(selected, values, horizon, request.season_length)
+    future, parameters = forecast_with(selected, values)
     month_end = all(day.day == calendar.monthrange(day.year, day.month)[1] for day in dates)
     forecast_points = []
     try:

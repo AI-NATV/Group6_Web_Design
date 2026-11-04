@@ -64,9 +64,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await evaluate(`(() => {
       const rows = Array.from({length: 120}, (_, index) => {
         const day = new Date(Date.UTC(2025, 0, index + 1)).toISOString().slice(0, 10);
-        return day + ',$' + (100 + index + 0.125).toFixed(3);
+        return day + ',$' + (100 + index + 0.125).toFixed(3) + ',' + (50 + index * 2) + ',A';
       }).reverse();
-      const csv = 'Date,Close\\n' + rows.join('\\n');
+      const csv = 'Date,Close,Demand,Product\\n' + rows.join('\\n');
       const transfer = new DataTransfer();
       transfer.items.add(new File([csv], 'forecast-browser-test.csv', {type:'text/csv'}));
       document.getElementById('fileInput').files = transfer.files;
@@ -109,6 +109,30 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       assert.equal(labels[0], "2025-01-01");
       assert.equal(labels.at(-1), "2025-05-07");
     }
+    // Optional feature review preserves baseline-only runs, then requires explicit confirmation.
+    await evaluate("document.getElementById('reviewFeatures').click()");
+    await until("!document.getElementById('featureReview').hidden && !document.getElementById('forecastControls').disabled");
+    assert.equal(await evaluate("document.querySelector('#featureCandidates input[value=Demand]').checked"), true);
+    assert.equal(await evaluate("document.getElementById('runForecast').disabled"), true);
+    assert.match(await evaluate("document.getElementById('featureReviewScope').textContent"), /2025-04-09/);
+    await evaluate("document.getElementById('confirmFeatures').click(); document.getElementById('runForecast').click()");
+    await until("!document.getElementById('forecastResults').hidden && !document.getElementById('forecastControls').disabled");
+    assert.equal(await evaluate("document.querySelectorAll('#forecastComparison tbody tr').length"), 4);
+    assert.match(await evaluate("document.getElementById('forecastInsights').textContent"), /Highest historical value/);
+    assert.match(await evaluate("document.getElementById('forecastFeaturePlan').textContent"), /Demand/);
+    await evaluate("document.getElementById('showEvaluation').click()");
+    assert.equal(await evaluate("document.getElementById('forecastEvaluationSection').hidden"), true);
+    await evaluate("document.getElementById('showEvaluation').click()");
+    const report = await evaluate(`(async () => {
+      const originalUrl = URL.createObjectURL, originalClick = HTMLAnchorElement.prototype.click;
+      let captured;
+      URL.createObjectURL = (blob) => { captured = blob; return originalUrl(blob); };
+      HTMLAnchorElement.prototype.click = function () {}; // inspect download without writing to the user's Downloads
+      try { document.getElementById('downloadForecast').click(); return JSON.parse(await captured.text()); }
+      finally { URL.createObjectURL = originalUrl; HTMLAnchorElement.prototype.click = originalClick; }
+    })()`);
+    assert.deepEqual(report.result.feature_plan.selected_features, ['Demand']);
+    assert.equal(report.result.forecast.length, 7);
     fs.mkdirSync(path.resolve('.tmp-forecast-qa'), { recursive: true });
     const { cssContentSize } = await send("Page.getLayoutMetrics");
     const shot = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
@@ -122,7 +146,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await evaluate("document.getElementById('forecastHorizon').value = '90'; document.getElementById('forecastHorizon').dispatchEvent(new Event('input', {bubbles:true}))");
     assert.equal(await evaluate("document.getElementById('forecastResults').hidden && document.getElementById('runForecast').disabled"), true);
     await evaluate(`(() => {
-      // Corrupt only this tab's cached copy; the saved dataset on the server is unchanged.
+      // The server's saved dataset is authoritative, even when a tab has stale rows.
       const key = 'revenue-analytics-active-v3';
       const entry = JSON.parse(sessionStorage.getItem(key));
       entry.dataset.data[0].Close = null;
@@ -131,11 +155,35 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       document.getElementById('forecastHorizon').dispatchEvent(new Event('input', {bubbles:true}));
       document.getElementById('runForecast').click();
     })()`);
+    await until("!document.getElementById('forecastControls').disabled && !document.getElementById('forecastResults').hidden");
+    // Invalid data on the SERVER must still produce a visible recoverable error.
+    await evaluate(`(async () => {
+      const dataset = AppState.activeDataset();
+      await Api.updateDataset(dataset.id, {data: dataset.data});
+      document.getElementById('runForecast').click();
+    })()`);
     await until("!document.getElementById('forecastControls').disabled && !!document.querySelector('#forecastMessage .error')");
     assert.equal(await evaluate("document.getElementById('forecastResults').hidden"), true);
     assert.match(await evaluate("document.getElementById('forecastMessage').textContent"), /invalid\/missing/);
+    // Restore saved data, then test series selection and EN/VI UI.
+    await evaluate(`(async () => {
+      const dataset = AppState.activeDataset(); dataset.data[0].Close = 219.125;
+      await Api.updateDataset(dataset.id, {data: dataset.data});
+      document.getElementById('forecastSeriesColumn').value = 'Product';
+      document.getElementById('forecastSeriesColumn').dispatchEvent(new Event('input', {bubbles: true}));
+      document.getElementById('reviewFeatures').click();
+    })()`);
+    await until("!document.getElementById('forecastControls').disabled && !document.getElementById('featureReview').hidden");
+    assert.equal(await evaluate("document.getElementById('forecastSeriesValue').value"), '"A"');
+    await evaluate("document.querySelector('#featureCandidates input[value=Demand]').click()");
+    assert.equal(await evaluate("document.getElementById('confirmFeatures').checked"), false);
+    assert.equal(await evaluate("document.getElementById('runForecast').disabled"), false);
+    await evaluate("document.getElementById('languageSelect').value = 'vi'; document.getElementById('languageSelect').dispatchEvent(new Event('change', {bubbles: true}))");
+    await until("document.readyState === 'complete' && document.documentElement.lang === 'vi'");
+    assert.match(await evaluate("document.getElementById('featureAssistantHeading').textContent"), /Trợ lý/);
+    assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, "Vietnamese mobile layout");
     assert.deepEqual(exceptions, []);
-    console.log(JSON.stringify({ passed: true, chartLoaded, checks: ['register and sign in', 'CSV upload', 'multiple saved datasets', 'dataset switching', 'precision preservation', 'forecast help', 'target selection', 'live forecast API', 'comparison and test tables', 'chronological chart', 'mobile layout', 'stale-result removal', 'insufficient-history gating', 'API error recovery'], screenshot: '.tmp-forecast-qa/forecast.png' }));
+    console.log(JSON.stringify({ passed: true, chartLoaded, checks: ['register and sign in', 'CSV upload', 'multiple saved datasets', 'dataset switching', 'precision preservation', 'forecast help', 'target selection', 'live forecast API', 'comparison and test tables', 'chronological chart', 'feature review', 'confirmation gate', 'Ridge comparison', 'insights', 'report visibility', 'JSON export', 'mobile layout', 'stale-result removal', 'insufficient-history gating', 'server authoritative data', 'API error recovery', 'series filter', 'Vietnamese UI'], screenshot: '.tmp-forecast-qa/forecast.png' }));
   } finally {
     await send("Page.close");
     socket.close();

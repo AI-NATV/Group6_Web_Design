@@ -1,16 +1,20 @@
 const ForecastWorkspace = (() => {
   let charts = [];
   let running = false;
+  let review = null;
+  let lastReport = null;
   const t = (key, variables) => I18n.t(key, variables);
   const modelNames = {
     naive: "forecast.naive", moving_average: "forecast.average",
     holt_damped: "forecast.holt", seasonal_naive: "forecast.seasonal",
+    ridge_lagged: "assistant.ridge",
   };
   const number = (value) => new Intl.NumberFormat(I18n.language() === "vi" ? "vi-VN" : "en-US", { maximumFractionDigits: 4 }).format(value);
   const el = (id) => document.getElementById(id);
   const escape = (value) => UI.escapeHtml(value);
 
   function clearResults() {
+    lastReport = null;
     charts.forEach((chart) => chart.destroy());
     charts = [];
     el("forecastResults").hidden = true;
@@ -25,6 +29,8 @@ const ForecastWorkspace = (() => {
       missing_policy: el("forecastMissing").value,
       duplicate_policy: el("forecastDuplicates").value,
       season_length: Number(el("forecastSeason").value),
+      series_column: el("forecastSeriesColumn").value || null,
+      series_value: el("forecastSeriesColumn").value ? JSON.parse(el("forecastSeriesValue").value || "null") : null,
     };
   }
 
@@ -41,8 +47,94 @@ const ForecastWorkspace = (() => {
     else if (dataset.data.length < required) error = t("forecast.needHistory", { required, rows: dataset.data.length });
     el("forecastEligibility").textContent = error || t("forecast.eligible", { required });
     el("forecastEligibility").className = `message ${error ? "warning" : "info"}`;
-    el("runForecast").disabled = Boolean(error) || running;
+    const selected = selectedFeatures();
+    const unconfirmed = selected.length > 0 && !el("confirmFeatures").checked;
+    el("runForecast").disabled = Boolean(error) || running || unconfirmed || selected.length > 8;
+    el("reviewFeatures").disabled = Boolean(error) || running;
+    el("confirmFeatures").disabled = selected.length === 0;
+    el("featureSelectionCount").textContent = t("assistant.selectedCount", { count: selected.length });
     return !error;
+  }
+
+  function selectedFeatures() {
+    return Array.from(document.querySelectorAll("#featureCandidates input:checked"), (input) => input.value);
+  }
+
+  function resetReview() {
+    review = null;
+    el("featureReview").hidden = true;
+    el("featureCandidates").replaceChildren();
+    el("confirmFeatures").checked = false;
+    UI.setMessage("featureReviewMessage", "");
+  }
+
+  function populateSeriesValues() {
+    const column = el("forecastSeriesColumn").value;
+    el("forecastSeriesValueLabel").hidden = !column;
+    const values = column ? [...new Set(AppState.activeDataset().data.map((row) => JSON.stringify(row[column] ?? null)))] : [];
+    el("forecastSeriesValue").innerHTML = values.map((value) => `<option value="${escape(value)}">${escape(JSON.parse(value) ?? t("assistant.missingValue"))}</option>`).join("");
+  }
+
+  async function reviewFeatures() {
+    if (running || !eligibility()) return;
+    resetReview();
+    clearResults();
+    UI.setMessage("forecastMessage", "");
+    running = true;
+    el("forecastControls").disabled = true;
+    UI.setMessage("featureReviewMessage", t("assistant.reviewing"), "info");
+    try {
+      review = await Api.reviewFeatures(AppState.activeDataset().id, configuration());
+      el("featureReview").hidden = false;
+      el("featureReviewScope").textContent = t("assistant.scope", { start: review.training_start, end: review.training_end, count: review.training_dates });
+      el("featureCandidates").innerHTML = review.candidates.map((item, index) => `<div class="feature-candidate"><label class="check-label" for="feature-${index}">
+        <input id="feature-${index}" type="checkbox" value="${escape(item.column)}" ${item.eligible ? "" : "disabled"} ${item.suggested ? "checked" : ""}>
+        <span><strong>${escape(item.column)}</strong>${item.suggested ? ` — ${escape(t("assistant.suggested"))}` : ""}
+          <span class="muted small">${escape(t(`assistant.reason.${item.reason}`))}</span>
+          <span class="muted small">${escape(t("assistant.stats", { missing: number(item.missing_fraction * 100), correlation: item.lag1_correlation === null ? t("assistant.notAvailable") : number(item.lag1_correlation) }))}</span>
+        </span></label></div>`).join("");
+      UI.setMessage("featureReviewMessage", t(review.candidates.some((item) => item.eligible) ? "assistant.ready" : "assistant.none"), "info");
+    } catch (error) {
+      UI.setMessage("featureReviewMessage", error.message || t("forecast.error"), "error");
+    } finally {
+      running = false;
+      el("forecastControls").disabled = false;
+      eligibility();
+    }
+  }
+
+  function renderInsights(result) {
+    const insight = result.insights;
+    const range = (item) => `${item.from} → ${item.to}`;
+    el("forecastInsights").innerHTML = `<div class="stats">${[
+      [t("assistant.minimum"), `${number(insight.minimum.value)} · ${insight.minimum.date}`],
+      [t("assistant.maximum"), `${number(insight.maximum.value)} · ${insight.maximum.date}`],
+      [t("assistant.largestChange"), `${number(insight.largest_change.change)} · ${range(insight.largest_change)}`],
+      [t("assistant.volatile"), `${number(insight.volatile_window.mean_absolute_change)} · ${range(insight.volatile_window)}`],
+      [t("assistant.outlook"), `${number(insight.outlook.change)} (${insight.outlook.percent_change === null ? t("assistant.notAvailable") : `${number(insight.outlook.percent_change)}%`})`],
+    ].map(([label, value]) => `<div class="stat"><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`).join("")}</div><p class="muted small">${escape(t("assistant.insightDefinitions", { count: insight.volatile_window.transitions, target: result.target_column }))}</p>`;
+    const features = result.feature_plan.selected_features;
+    el("forecastFeaturePlan").textContent = features.length
+      ? t(result.selected_model === "ridge_lagged" ? "assistant.ridgeWon" : "assistant.baselineWon", { features: features.join(", ") })
+      : t("assistant.baselineOnly");
+    applyReportVisibility();
+  }
+
+  function applyReportVisibility() {
+    el("forecastInsights").hidden = !el("showInsights").checked;
+    el("forecastEvaluationSection").hidden = !el("showEvaluation").checked;
+    el("forecastFutureSection").hidden = !el("showFuture").checked;
+    charts.forEach((chart) => chart.resize());
+  }
+
+  function downloadReport() {
+    if (!lastReport) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(lastReport, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "forecast-report.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function table(caption, headers, rows) {
@@ -65,6 +157,7 @@ const ForecastWorkspace = (() => {
 
   function render(result) {
     el("forecastResults").hidden = false;
+    renderInsights(result);
     const name = t(modelNames[result.selected_model]);
     el("forecastSummary").innerHTML = [
       [t("forecast.selectedValidation"), name], [t("forecast.testMae"), number(result.test_metrics.mae)],
@@ -83,7 +176,7 @@ const ForecastWorkspace = (() => {
     el("backtestTable").innerHTML = `<details><summary>${t("forecast.viewPredictions")}</summary>${table(t("forecast.backtestCaption"), [t("forecast.date"), t("forecast.actual"), name, t("forecast.naive")], result.backtest.map((point) => [point.date, number(point.actual), number(point.predicted), number(point.naive)]))}</details>`;
     el("forecastWarnings").innerHTML = result.warnings.map((warning) => `<p class="message warning">${escape(warning)}</p>`).join("");
     el("forecastTable").innerHTML = table(t("forecast.futureCaption"), [t("forecast.step"), t("forecast.datePeriod"), t("forecast.predicted", { field: result.target_column })], result.forecast.map((point) => [point.step, point.date || t("forecast.observation", { step: point.step }), number(point.predicted)]));
-    el("forecastMethod").textContent = t("forecast.fitted", { name, parameters: JSON.stringify(result.model_parameters), target: result.target_column });
+    el("forecastMethod").textContent = t("assistant.fitted", { name, parameters: JSON.stringify(result.model_parameters), target: result.target_column });
     if (typeof Chart === "undefined") {
       UI.setMessage("forecastMessage", t("forecast.chartUnavailable"), "warning");
       return;
@@ -103,7 +196,7 @@ const ForecastWorkspace = (() => {
 
   async function run(event) {
     event.preventDefault();
-    if (running || !eligibility()) return;
+    if (running || !eligibility() || el("runForecast").disabled) return;
     const config = configuration();
     const dataset = AppState.activeDataset();
     clearResults();
@@ -112,9 +205,11 @@ const ForecastWorkspace = (() => {
     el("runForecast").textContent = t("forecast.evaluating");
     UI.setMessage("forecastMessage", t("forecast.progress"), "info");
     try {
-      const result = await Api.forecast({ ...config, observations: dataset.data.map((row) => ({
-        date: row[config.time_column] ?? null, value: row[config.target_column] ?? null,
-      })) });
+      const payload = { ...config, selected_features: selectedFeatures(), confirmed: el("confirmFeatures").checked,
+        review_token: review?.review_token || null };
+      const result = await Api.forecastDataset(dataset.id, payload);
+      lastReport = { dataset_id: dataset.id, filename: dataset.filename, configuration: payload, result,
+        generated_at: new Date().toISOString() };
       render(result);
     } catch (error) {
       UI.setMessage("forecastMessage", error.message || t("forecast.error"), "error");
@@ -140,13 +235,23 @@ const ForecastWorkspace = (() => {
     el("forecastTime").innerHTML = `<option value="">${t("forecast.chooseTime")}</option>` + options(dataset.columns);
     el("forecastTarget").innerHTML = `<option value="">${t("forecast.chooseTarget")}</option>` + options(numericFields);
     if (dates.length === 1) el("forecastTime").value = dates[0];
+    el("forecastSeriesColumn").innerHTML = `<option value="">${t("assistant.allRows")}</option>` + options(dataset.columns);
     el("forecastDatasetContext").innerHTML = [
       [t("forecast.activeFile"), dataset.filename], [t("common.rowsLabel"), dataset.data.length], [t("forecast.numericTargets"), numericFields.length],
     ].map(([label, value]) => `<div class="stat"><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`).join("");
     el("forecastForm").addEventListener("submit", run);
-    el("forecastForm").addEventListener("input", () => {
+    el("reviewFeatures").addEventListener("click", reviewFeatures);
+    el("downloadForecast").addEventListener("click", downloadReport);
+    ["showInsights", "showEvaluation", "showFuture"].forEach((id) => el(id).addEventListener("change", applyReportVisibility));
+    el("forecastForm").addEventListener("input", (event) => {
       clearResults();
       UI.setMessage("forecastMessage", "");
+      if (event.target.closest("#featureCandidates")) {
+        el("confirmFeatures").checked = false;
+      } else if (event.target.id !== "confirmFeatures") {
+        if (event.target.id === "forecastSeriesColumn") populateSeriesValues();
+        resetReview();
+      }
       eligibility();
     });
     el("forecastHelp").addEventListener("click", () => {

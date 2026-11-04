@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import ALLOWED_ORIGINS
 from backend.database import create_db_and_tables
 from backend.models import ForecastRequest, ForecastResponse, HealthResponse
-from backend.routers import auth, datasets, visuals
+from backend.routers import auth, datasets, forecast as dataset_forecast, visuals
 from backend.security import require_secret_key
 from backend.services.forecast_service import ForecastValidationError, run_forecast
 
@@ -34,14 +34,14 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="Revenue Analytics API",
-    version="0.5.0",
-    description="Saved CSV datasets and dashboards, plus univariate forecasts with chronological validation and held-out testing.",
+    version="0.6.0",
+    description="Saved CSV datasets and dashboards, local feature review, and baseline/historical-feature forecasts with chronological validation and held-out testing.",
     lifespan=lifespan,
     openapi_tags=[
         {"name": "auth", "description": "Register, log in for a Bearer token, and read the current user."},
         {"name": "datasets", "description": "Upload CSV files and manage the saved datasets."},
         {"name": "visuals", "description": "Charts saved on a dataset's dashboard."},
-        {"name": "forecast", "description": "Stateless forecasts computed from the posted observations (nothing is stored)."},
+        {"name": "forecast", "description": "Owner-checked feature review/forecasts on saved datasets, plus the legacy stateless baseline endpoint. Forecast results are not stored."},
         {"name": "health", "description": "Service status."},
     ],
 )
@@ -93,6 +93,7 @@ def forecast(payload: ForecastRequest) -> ForecastResponse:
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(datasets.router, prefix="/api/v1")
 app.include_router(visuals.router, prefix="/api/v1")
+app.include_router(dataset_forecast.router, prefix="/api/v1")
 
 # Same-origin local development option: http://127.0.0.1:8000/app/
 app.mount("/app", StaticFiles(directory=str(FRONTEND_DIRECTORY), html=True), name="frontend")

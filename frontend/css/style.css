@@ -1315,6 +1315,40 @@ td select {
   }
 }
 
+.feature-assistant {
+  padding: 18px;
+  margin: 18px 0;
+  background: #f7f8ff;
+  border: 1px solid #d8dcff;
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.check-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.check-label input[type="checkbox"], .feature-assistant input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 3px 0 0;
+}
+
+.feature-candidate {
+  padding: 12px 0;
+  border-bottom: 1px solid #dde2f2;
+  overflow-wrap: anywhere;
+}
+
+.feature-candidate .muted { display: block; font-weight: normal; }
+.feature-candidate:last-child { border-bottom: 0; }
+.feature-assistant h3 { margin-top: 0; }
+.report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 16px 0; }
+#forecastInsights .stat strong { white-space: normal; overflow-wrap: anywhere; }
+
 @media (max-width: 480px) {
   .header-status {
     display: flex;

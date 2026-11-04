@@ -65,5 +65,7 @@ const Api = (() => {
     moveVisual: (id, position) => request(`/api/v1/visuals/${encodeURIComponent(id)}`, json("PATCH", { position })),
     deleteVisual: (id) => request(`/api/v1/visuals/${encodeURIComponent(id)}`, { method: "DELETE" }),
     forecast: (payload) => request("/forecast", json("POST", payload)),
+    reviewFeatures: (datasetId, payload) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/feature-review`, json("POST", payload)),
+    forecastDataset: (datasetId, payload) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/forecast`, json("POST", payload)),
   };
 })();

@@ -62,3 +62,28 @@ class ForecastResponse(BaseModel):
     history: list[dict[str, Any]]
     backtest: list[BacktestPoint]
     forecast: list[ForecastPoint]
+
+
+class DatasetForecastTask(BaseModel):
+    """One saved series; no client-supplied observations or ownership fields."""
+
+    time_column: str = Field(min_length=1, max_length=200)
+    target_column: str = Field(min_length=1, max_length=200)
+    horizon: int = Field(default=7, ge=1, le=90)
+    frequency: Literal["auto", "daily", "weekly", "monthly", "observations"] = "auto"
+    missing_policy: Literal["error", "drop"] = "error"
+    duplicate_policy: Literal["error", "sum", "mean"] = "error"
+    season_length: int = Field(default=0, ge=0, le=365)
+    series_column: str | None = Field(default=None, max_length=200)
+    series_value: str | int | float | bool | None = None
+
+
+class AssistedForecastRequest(DatasetForecastTask):
+    selected_features: list[str] = Field(default_factory=list, max_length=8)
+    confirmed: bool = False
+    review_token: str | None = Field(default=None, max_length=64)
+
+
+class AssistedForecastResponse(ForecastResponse):
+    feature_plan: dict[str, Any]
+    insights: dict[str, Any]
