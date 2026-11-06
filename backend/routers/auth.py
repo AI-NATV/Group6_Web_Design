@@ -6,12 +6,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from backend.database import SessionDep
-from backend.db_models import Token, User, UserCreate, UserPublic
-from backend.security import CurrentUser, authenticate, create_access_token, hash_password
+from backend.db_models import AccountDelete, AvatarUpdate, Token, User, UserCreate, UserPublic, UserUpdate
+from backend.security import CurrentUser, authenticate, create_access_token, hash_password, verify_password
 
 
 router = APIRouter(tags=["auth"])
@@ -44,7 +45,10 @@ def register(user_in: UserCreate, session: SessionDep) -> User:
     responses={401: {"description": "Incorrect username or password"}},
 )
 def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep) -> Token:
-    user = session.exec(select(User).where(User.username == form.username.strip().lower())).first()
+    # Compare case-insensitively on both sides, so accounts stored before usernames were
+    # normalized (for example "Tuan") can still sign in with any letter case.
+    name = form.username.strip().lower()
+    user = session.exec(select(User).where(func.lower(User.username) == name)).first()
     if not authenticate(user, form.password):
         raise HTTPException(
             status_code=401,
@@ -57,3 +61,48 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], session: Sessio
 @router.get("/me", response_model=UserPublic, summary="The logged-in user", responses={401: {"description": "Not logged in"}})
 def read_me(user: CurrentUser) -> User:
     return user
+
+
+@router.patch(
+    "/me",
+    response_model=UserPublic,
+    summary="Update optional profile fields (display name, phone)",
+    responses={401: {"description": "Not logged in"}, 422: {"description": "Invalid value"}},
+)
+def update_me(update: UserUpdate, session: SessionDep, user: CurrentUser) -> User:
+    # Username and email are not editable here; only the optional profile fields are.
+    changes = update.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(user, field, value)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@router.put(
+    "/me/avatar",
+    response_model=UserPublic,
+    summary="Set the profile picture (PNG, JPEG or WebP data URL)",
+    responses={401: {"description": "Not logged in"}, 422: {"description": "Not an image or too large"}},
+)
+def set_avatar(body: AvatarUpdate, session: SessionDep, user: CurrentUser) -> User:
+    user.avatar = body.avatar
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@router.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete your account and all its datasets (requires the current password)",
+    responses={401: {"description": "Not logged in"}, 403: {"description": "Password is incorrect"}},
+)
+def delete_me(body: AccountDelete, session: SessionDep, user: CurrentUser) -> None:
+    if not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status_code=403, detail="Password is incorrect")
+    # Datasets and visuals are removed by the ORM cascade configured on the models.
+    session.delete(user)
+    session.commit()

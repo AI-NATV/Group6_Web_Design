@@ -67,5 +67,9 @@ const Api = (() => {
     forecast: (payload) => request("/forecast", json("POST", payload)),
     reviewFeatures: (datasetId, payload) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/feature-review`, json("POST", payload)),
     forecastDataset: (datasetId, payload) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/forecast`, json("POST", payload)),
+    // Profile: optional display name and phone, profile picture, and account deletion (needs the password).
+    updateProfile: (changes) => request("/api/v1/me", json("PATCH", changes)),
+    setAvatar: (avatar) => request("/api/v1/me/avatar", json("PUT", { avatar })),
+    deleteAccount: (password) => request("/api/v1/me", json("DELETE", { password })),
   };
 })();

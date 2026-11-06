@@ -34,6 +34,7 @@
       </div>
       <form id="uploadForm" class="upload-controls" action="/api/v1/datasets" method="post" enctype="multipart/form-data" novalidate>
         <label class="file-picker" for="fileInput"><span data-i18n="data.chooseCsv">Choose CSV</span><input type="file" id="fileInput" name="file" accept=".csv,text/csv" required></label>
+        <span id="selectedFileName" class="selected-file" aria-live="polite"></span>
         <button id="uploadButton" type="submit" data-i18n="data.upload">Upload CSV</button>
       </form>
       <div id="uploadMessage"></div>
@@ -86,6 +87,7 @@
   <script src="js/api.js?v=auth-1" defer></script>
   <script src="js/i18n.js?v=auth-1" defer></script>
   <script src="js/ui.js?v=auth-1" defer></script>
+  <script src="js/account.js?v=account-1" defer></script>
   <script src="js/data.js?v=auth-1" defer></script>
 </body>
 </html>

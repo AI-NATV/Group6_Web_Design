@@ -1,5 +1,6 @@
 :root {
   /* Text and neutral surfaces */
+  --header-bg: rgba(255, 255, 255, .95);
   --ink: #15213a;
   --ink-soft: #475569;
   --muted: #64748b;
@@ -139,7 +140,7 @@ a {
   z-index: 5;
   top: 0;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, .95);
+  background: var(--header-bg);
   backdrop-filter: blur(12px);
 }
 
@@ -930,8 +931,8 @@ td select {
 }
 
 .icon-button.danger {
-  background: #fff0f0;
-  color: #b91c1c;
+  background: var(--bad-bg);
+  color: var(--bad);
 }
 
 .saved-chart-wrap {
@@ -955,7 +956,7 @@ td select {
   border: 1px solid #fcd34d;
   border-radius: 10px;
   padding: 13px 15px;
-  background: #fffbeb;
+  background: var(--warn-bg);
   color: var(--warn);
 }
 
@@ -1389,5 +1390,204 @@ td select {
 
   .saved-visuals {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Dark theme (manual choice or system preference) ---------- */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --header-bg: rgba(15, 23, 42, .95);
+  --ink: #e5e7eb;
+  --ink-soft: #cbd5e1;
+  --muted: #94a3b8;
+  --line: #334155;
+  --page-bg: #0f172a;
+  --surface: #111827;
+  --surface-soft: #1e293b;
+  --surface-tint: #172033;
+  --brand: #818cf8;
+  --brand-dark: #a5b4fc;
+  --brand-deep: #c7d2fe;
+  --brand-border: #3730a3;
+  --brand-line: #312e81;
+  --brand-soft-strong: #312e81;
+  --brand-soft: #1e1b4b;
+  --brand-highlight: #1e1b4b;
+  --brand-tint: #1e1b4b;
+  --on-brand: #0f172a;
+  --good-bg: #14532d;
+  --good: #bbf7d0;
+  --warn-bg: #451a03;
+  --warn: #fde68a;
+  --bad-bg: #450a0a;
+  --bad: #fecaca;
+  --shadow: 0 8px 30px rgba(0, 0, 0, .4);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    color-scheme: dark;
+    --header-bg: rgba(15, 23, 42, .95);
+    --ink: #e5e7eb;
+    --ink-soft: #cbd5e1;
+    --muted: #94a3b8;
+    --line: #334155;
+    --page-bg: #0f172a;
+    --surface: #111827;
+    --surface-soft: #1e293b;
+    --surface-tint: #172033;
+    --brand: #818cf8;
+    --brand-dark: #a5b4fc;
+    --brand-deep: #c7d2fe;
+    --brand-border: #3730a3;
+    --brand-line: #312e81;
+    --brand-soft-strong: #312e81;
+    --brand-soft: #1e1b4b;
+    --brand-highlight: #1e1b4b;
+    --brand-tint: #1e1b4b;
+    --on-brand: #0f172a;
+    --good-bg: #14532d;
+    --good: #bbf7d0;
+    --warn-bg: #451a03;
+    --warn: #fde68a;
+    --bad-bg: #450a0a;
+    --bad: #fecaca;
+    --shadow: 0 8px 30px rgba(0, 0, 0, .4);
+  }
+}
+
+/* ---------- Account dialog, profile and small helpers ---------- */
+.account-dialog {
+  width: min(92vw, 560px);
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.account-dialog::backdrop {
+  background: rgba(15, 23, 42, .45);
+}
+
+.account-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.account-dialog-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.account-section {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.account-section h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.account-profile-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.account-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.account-avatar-fallback {
+  display: inline-grid;
+  place-items: center;
+  background: var(--brand-soft-strong);
+  color: var(--brand-deep);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.account-file {
+  display: block;
+  font-weight: 600;
+}
+
+.account-file input {
+  margin-top: 6px;
+  max-width: 100%;
+}
+
+.account-danger {
+  border-top-color: var(--bad);
+}
+
+.account-confirm {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.account-confirm button {
+  margin: 6px 6px 0 0;
+}
+
+.selected-file {
+  display: inline-block;
+  margin-left: 10px;
+  color: var(--ink-soft);
+  font-size: .95rem;
+  overflow-wrap: anywhere;
+}
+
+.auth-illustration {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  margin: 0 auto 16px;
+  border-radius: 14px;
+}
+
+/* Phones: stack the dialog content and let the header tools wrap. */
+@media (max-width: 480px) {
+  .account-dialog {
+    width: 94vw;
+    padding: 14px;
+  }
+
+  .account-profile-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-status {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .account-dialog {
+    max-height: 96vh;
+  }
+
+  .auth-illustration {
+    max-width: 420px;
   }
 }

@@ -5,6 +5,7 @@ SQLModel combines SQLAlchemy (tables, sessions, queries) with Pydantic
 request/response schemas, so the API never exposes more than it intends to.
 """
 
+import re
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -38,6 +39,11 @@ class Aggregation(str, Enum):
     max = "max"
 
 
+PHONE_PATTERN = r"^\+?[0-9][0-9 .\-]{6,18}[0-9]$"
+AVATAR_MAX_CHARS = 200_000  # about 150 KB of image data after base64 encoding
+AVATAR_TYPES = ("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,")
+
+
 # ---------- Tables ----------
 
 class UserBase(SQLModel):
@@ -60,6 +66,10 @@ class User(UserBase, table=True):
     hashed_password: str
     role: Role = Role.user
     created_at: datetime = Field(default_factory=utc_now)
+    # Optional profile fields; they never affect login or ownership.
+    display_name: str | None = Field(default=None, max_length=60)
+    phone: str | None = Field(default=None, max_length=20)
+    avatar: str | None = Field(default=None, max_length=AVATAR_MAX_CHARS)
 
     datasets: list["Dataset"] = Relationship(back_populates="owner", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
@@ -129,8 +139,51 @@ class UserPublic(UserBase):
     id: int
     role: Role
     created_at: datetime
+    display_name: str | None = None
+    phone: str | None = None
+    avatar: str | None = None
 
     _utc = field_validator("created_at")(as_utc)
+
+
+class UserUpdate(SQLModel):
+    """PATCH /me body. Email/username cannot change here; every field is optional."""
+
+    display_name: str | None = Field(default=None, max_length=60)
+    phone: str | None = Field(default=None, max_length=20)
+
+    @field_validator("display_name")
+    @classmethod
+    def clean_display_name(cls, value: str | None) -> str | None:
+        value = (value or "").strip()
+        return value or None
+
+    @field_validator("phone")
+    @classmethod
+    def check_phone(cls, value: str | None) -> str | None:
+        value = (value or "").strip()
+        if not value:
+            return None
+        if not re.fullmatch(PHONE_PATTERN, value):
+            raise ValueError("enter a phone number with 8 to 20 digits, spaces, '.', '-' or a leading '+'")
+        return value
+
+
+class AvatarUpdate(SQLModel):
+    avatar: str = Field(max_length=AVATAR_MAX_CHARS)
+
+    @field_validator("avatar")
+    @classmethod
+    def check_avatar(cls, value: str) -> str:
+        if not value.startswith(AVATAR_TYPES):
+            raise ValueError("avatar must be a PNG, JPEG or WebP image")
+        return value
+
+
+class AccountDelete(SQLModel):
+    """DELETE /me body: the current password is required to confirm the deletion."""
+
+    password: str = Field(min_length=1, max_length=72)
 
 
 class Token(SQLModel):

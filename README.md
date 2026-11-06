@@ -8,7 +8,9 @@ A semantic-aware Mini BI application for CSV data: upload and review fields, bui
 - CSV validation (CSV only, no empty/header-only data, unique nonblank columns, 10 MB limit).
 - Paginated preview, type/role recommendations, confidence, and user overrides.
 - Datasets, semantic reviews, cleaned rows and dashboards saved in a database (SQLite by default, PostgreSQL via `DATABASE_URL`) and available again in a new browser.
-- Accounts: register, sign in (OAuth2 password flow, JWT Bearer tokens), sign out. Each user sees only their own datasets; admins can access all.
+- Accounts: register, sign in (OAuth2 password flow, JWT Bearer tokens), sign out. Each user sees only their own datasets; admins can access all. Sign-in is not case-sensitive, and accounts created before usernames were lower-cased are still accepted.
+- Account dialog (header **Account** button): optional display name (the greeting uses it, otherwise the username), optional phone number, profile picture (PNG, JPEG or WebP, up to 140 KB), About section, log out, and account deletion that needs the current password and a second confirmation. The username cannot be changed in this version, and email is not used for sign-in.
+- Light, dark, or automatic theme (header **Theme** button). The choice is stored in this browser only.
 - Data-quality counts and explicit removal of exact duplicates or rows with missing values.
 - Semantic-aware drag-and-drop/click-to-assign field wells for Bar, Line, Pie, and Scatter charts.
 - SUM, AVERAGE, COUNT, MIN, and MAX aggregation; compatibility feedback; and a saved dashboard per dataset with reorder/remove controls and KPI cards.

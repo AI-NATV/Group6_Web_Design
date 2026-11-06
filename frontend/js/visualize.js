@@ -8,6 +8,13 @@ const VisualizeWorkspace = (() => {
   let aggregation = "sum";
   const t = (key, variables) => I18n.t(key, variables);
 
+  // Switching between bar, line and pie keeps the same dimension and measure (Power BI style).
+  // Scatter uses different fields, so switching to or from it starts clean.
+  function carryFields(previous, from, to) {
+    if (from === "scatter" || to === "scatter") return freshFields(to);
+    return { dimension: previous.dimension, measure: previous.measure };
+  }
+
   function freshFields(type) {
     return type === "scatter" ? { x: null, y: null } : { dimension: null, measure: null };
   }
@@ -291,12 +298,15 @@ const VisualizeWorkspace = (() => {
     document.getElementById("chartTypes").addEventListener("click", (event) => {
       const button = event.target.closest("[data-chart-type]");
       if (!button) return;
+      const previousType = chartType;
       chartType = button.dataset.chartType;
-      fields = freshFields(chartType);
+      fields = carryFields(fields, previousType, chartType);
       invalidateGeneratedVisual();
       renderChartTypes();
       renderFieldWells();
       UI.setMessage("builderMessage", "");
+      // Keep the same data: if the fields are still complete, redraw the chart at once.
+      if (!validationError()) generateChart();
     });
     document.getElementById("fieldSearch").addEventListener("input", renderDataPane);
     const dataFields = document.getElementById("dataFields");
