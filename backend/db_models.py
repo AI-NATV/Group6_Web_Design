@@ -39,6 +39,7 @@ class Aggregation(str, Enum):
     max = "max"
 
 
+EMAIL_PATTERN = r"[a-z0-9._%+\-]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}"
 PHONE_PATTERN = r"^\+?[0-9][0-9 .\-]{6,18}[0-9]$"
 AVATAR_MAX_CHARS = 200_000  # about 150 KB of image data after base64 encoding
 AVATAR_TYPES = ("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,")
@@ -47,15 +48,16 @@ AVATAR_TYPES = ("data:image/png;base64,", "data:image/jpeg;base64,", "data:image
 # ---------- Tables ----------
 
 class UserBase(SQLModel):
-    username: str = Field(index=True, unique=True, min_length=3, max_length=30)
+    # The email address is the sign-in name. It is stored in lower case, so
+    # "Alice@Example.com" and "alice@example.com" are the same account.
+    email: str = Field(index=True, unique=True, max_length=254)
 
-    @field_validator("username")
+    @field_validator("email")
     @classmethod
-    def normalize_username(cls, value: str) -> str:
-        # Case-insensitive usernames: "Alice" and "alice" are the same account.
+    def normalize_email(cls, value: str) -> str:
         value = value.strip().lower()
-        if not all(character.isascii() and (character.isalnum() or character in "._-") for character in value):
-            raise ValueError("use only letters, digits, '.', '_' or '-'")
+        if len(value) > 254 or not re.fullmatch(EMAIL_PATTERN, value):
+            raise ValueError("enter a valid email address, for example name@example.com")
         return value
 
 
@@ -147,7 +149,7 @@ class UserPublic(UserBase):
 
 
 class UserUpdate(SQLModel):
-    """PATCH /me body. Email/username cannot change here; every field is optional."""
+    """PATCH /me body. The email cannot change here; every field is optional."""
 
     display_name: str | None = Field(default=None, max_length=60)
     phone: str | None = Field(default=None, max_length=20)

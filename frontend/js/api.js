@@ -46,9 +46,9 @@ const Api = (() => {
 
   return {
     health: () => request("/health"),
-    // OAuth2 password flow: the login is a form (username, password), not JSON.
-    login: (username, password) => request(LOGIN_PATH, { method: "POST", body: new URLSearchParams({ username, password }) }),
-    register: (username, password) => request("/api/v1/register", json("POST", { username, password })),
+    // OAuth2 password flow: the login is a form. The field must be named "username", but it carries the email address.
+    login: (email, password) => request(LOGIN_PATH, { method: "POST", body: new URLSearchParams({ username: email, password }) }),
+    register: (email, password) => request("/api/v1/register", json("POST", { email, password })),
     me: () => request("/api/v1/me"),
     // Datasets and their dashboard visuals are stored in the server database.
     listDatasets: () => request("/api/v1/datasets?limit=100"),

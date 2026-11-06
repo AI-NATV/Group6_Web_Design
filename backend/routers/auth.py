@@ -23,17 +23,17 @@ router = APIRouter(tags=["auth"])
     response_model=UserPublic,
     status_code=status.HTTP_201_CREATED,
     summary="Create an account",
-    responses={409: {"description": "Username already taken"}},
+    responses={409: {"description": "Email already registered"}},
 )
 def register(user_in: UserCreate, session: SessionDep) -> User:
     # The role is never read from the request: admins are created with python -m backend.create_admin.
-    user = User(username=user_in.username, hashed_password=hash_password(user_in.password))
+    user = User(email=user_in.email, hashed_password=hash_password(user_in.password))
     session.add(user)
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
-        raise HTTPException(status_code=409, detail="Username already taken")
+        raise HTTPException(status_code=409, detail="Email already registered")
     session.refresh(user)
     return user
 
@@ -41,18 +41,18 @@ def register(user_in: UserCreate, session: SessionDep) -> User:
 @router.post(
     "/token",
     response_model=Token,
-    summary="Log in with a username and password (form fields) to get a Bearer token",
-    responses={401: {"description": "Incorrect username or password"}},
+    summary="Log in with an email and password (form fields; the form field is named username) to get a Bearer token",
+    responses={401: {"description": "Incorrect email or password"}},
 )
 def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep) -> Token:
-    # Compare case-insensitively on both sides, so accounts stored before usernames were
-    # normalized (for example "Tuan") can still sign in with any letter case.
-    name = form.username.strip().lower()
-    user = session.exec(select(User).where(func.lower(User.username) == name)).first()
+    # OAuth2 requires the field to be called "username"; its value is the email address.
+    # Comparing in lower case on both sides keeps sign-in case-insensitive.
+    email = form.username.strip().lower()
+    user = session.exec(select(User).where(func.lower(User.email) == email)).first()
     if not authenticate(user, form.password):
         raise HTTPException(
             status_code=401,
-            detail="Incorrect username or password",  # same message for both cases
+            detail="Incorrect email or password",  # same message for both cases
             headers={"WWW-Authenticate": "Bearer"},
         )
     return Token(access_token=create_access_token(str(user.id)))

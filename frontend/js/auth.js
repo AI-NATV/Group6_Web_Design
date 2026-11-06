@@ -37,7 +37,7 @@ const Auth = (() => {
 
   function setUser(account) {
     sessionStorage.setItem(USER_KEY, JSON.stringify({
-      username: account.username,
+      email: account.email,
       role: account.role,
       display_name: account.display_name || null,
       avatar: account.avatar || null,

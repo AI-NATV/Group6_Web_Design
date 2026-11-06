@@ -53,9 +53,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await until("document.readyState === 'complete' && typeof Api !== 'undefined' && !!document.getElementById('loginForm')");
     await evaluate(setBase);
     await evaluate(`(async () => {
-      const username = 'qa-' + Date.now();
-      await Api.register(username, 'qa-password-123');
-      Auth.setToken((await Api.login(username, 'qa-password-123')).access_token);
+      const email = 'qa-' + Date.now() + '@example.com';
+      await Api.register(email, 'qa-password-123');
+      Auth.setToken((await Api.login(email, 'qa-password-123')).access_token);
       Auth.setUser(await Api.me());
     })()`);
     await send("Page.navigate", { url: `${appUrl}/app/` });

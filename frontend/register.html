@@ -28,8 +28,8 @@
     <section class="card auth-card" aria-labelledby="registerHeading">
       <h2 id="registerHeading" data-i18n="auth.register">Create an account</h2>
       <form id="registerForm" class="auth-form" action="/api/v1/register" method="post" novalidate>
-        <label for="registerUsername" data-i18n="auth.username">Username</label>
-        <input id="registerUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9._\-]+" aria-describedby="registerRules">
+        <label for="registerEmail" data-i18n="auth.email">Email</label>
+        <input id="registerEmail" name="email" type="email" autocomplete="email" required maxlength="254" aria-describedby="registerRules">
         <label for="registerPassword" data-i18n="auth.password">Password</label>
         <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="registerRules">
         <label for="registerConfirm" data-i18n="auth.confirmPassword">Repeat password</label>

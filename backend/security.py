@@ -34,7 +34,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     return password_hash.verify(plain, hashed)
 
 
-# Checked against when the username does not exist, so a login attempt takes
+# Checked against when the email does not exist, so a login attempt takes
 # about as long whether or not the account exists.
 _DUMMY_HASH = hash_password("not-a-real-password")
 

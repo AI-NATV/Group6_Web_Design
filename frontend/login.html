@@ -28,8 +28,8 @@
     <section class="card auth-card" aria-labelledby="loginHeading">
         <h2 id="loginHeading" data-i18n="auth.signIn">Sign in</h2>
         <form id="loginForm" class="auth-form" action="/api/v1/token" method="post" novalidate>
-          <label for="loginUsername" data-i18n="auth.username">Username</label>
-          <input id="loginUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="30">
+          <label for="loginEmail" data-i18n="auth.email">Email</label>
+          <input id="loginEmail" name="username" type="email" autocomplete="email" required maxlength="254">
           <label for="loginPassword" data-i18n="auth.password">Password</label>
           <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
           <button id="loginButton" type="submit" data-i18n="auth.signIn">Sign in</button>

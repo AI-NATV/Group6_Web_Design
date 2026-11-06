@@ -58,7 +58,7 @@ const Account = (() => {
 
   // ---------- account dialog ----------
   function initials(account) {
-    const source = (account.display_name || account.username || "?").trim();
+    const source = (account.display_name || account.email || "?").trim();
     return escape(source.charAt(0).toUpperCase());
   }
 
@@ -90,10 +90,10 @@ const Account = (() => {
         </div>
         ${role}
         <form id="accountProfileForm" class="auth-form" novalidate>
-          <label for="accountUsername">${escape(t("account.username"))}</label>
-          <input id="accountUsername" type="text" value="${escape(account.username)}" readonly>
+          <label for="accountEmail">${escape(t("account.email"))}</label>
+          <input id="accountEmail" type="email" value="${escape(account.email)}" readonly>
           <label for="accountDisplayName">${escape(t("account.displayName"))}</label>
-          <input id="accountDisplayName" name="display_name" type="text" maxlength="60" value="${escape(account.display_name || "")}" placeholder="${escape(account.username)}">
+          <input id="accountDisplayName" name="display_name" type="text" maxlength="60" value="${escape(account.display_name || "")}" placeholder="${escape(account.email)}">
           <p class="muted small">${escape(t("account.displayHint"))}</p>
           <label for="accountPhone">${escape(t("account.phone"))}</label>
           <input id="accountPhone" name="phone" type="tel" maxlength="20" autocomplete="tel" value="${escape(account.phone || "")}">
@@ -255,7 +255,7 @@ const Account = (() => {
     if (!status) return;
     mountThemeButton(status);
     const account = Auth.user();
-    if (Auth.isLoggedIn() && account && account.username) mountAccount(status, account);
+    if (Auth.isLoggedIn() && account && account.email) mountAccount(status, account);
   }
 
   window.addEventListener("DOMContentLoaded", mount);

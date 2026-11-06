@@ -43,8 +43,8 @@ const UI = (() => {
     const account = Auth.user();
     if (!indicator || !account) return;
     const role = account.role === "admin" ? ` · ${I18n.t("auth.admin")}` : "";
-    // Greet with the optional display name; without one, the username is used (never the raw email).
-    indicator.textContent = `${I18n.t("auth.signedInAs", { name: account.display_name || account.username })}${role}`;
+    // Greet with the optional display name; without one, the email address is used.
+    indicator.textContent = `${I18n.t("auth.signedInAs", { name: account.display_name || account.email })}${role}`;
     indicator.title = indicator.textContent; // full text when the header shortens it
     indicator.hidden = false;
   }

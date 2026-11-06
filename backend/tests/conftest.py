@@ -49,10 +49,15 @@ def client_fixture(session):
     app.dependency_overrides.clear()
 
 
+def email_for(name: str) -> str:
+    """Tests may pass a plain name ("alice") or a full address; a plain name gets the test domain."""
+    return name if "@" in name else f"{name}@example.com"
+
+
 @pytest.fixture
 def make_user(session):
     def _make(username="alice", password="password123", role=Role.user) -> User:
-        user = User(username=username, hashed_password=hash_password(password), role=role)
+        user = User(email=email_for(username), hashed_password=hash_password(password), role=role)
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -66,7 +71,7 @@ def login(client, make_user):
 
     def _login(username="alice", password="password123", role=Role.user) -> dict:
         make_user(username, password, role)
-        response = client.post("/api/v1/token", data={"username": username, "password": password})  # a form, not JSON
+        response = client.post("/api/v1/token", data={"username": email_for(username), "password": password})  # a form, not JSON
         return {"Authorization": f"Bearer {response.json()['access_token']}"}
     return _login
 

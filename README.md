@@ -8,8 +8,8 @@ A semantic-aware Mini BI application for CSV data: upload and review fields, bui
 - CSV validation (CSV only, no empty/header-only data, unique nonblank columns, 10 MB limit).
 - Paginated preview, type/role recommendations, confidence, and user overrides.
 - Datasets, semantic reviews, cleaned rows and dashboards saved in a database (SQLite by default, PostgreSQL via `DATABASE_URL`) and available again in a new browser.
-- Accounts: register, sign in (OAuth2 password flow, JWT Bearer tokens), sign out. Each user sees only their own datasets; admins can access all. Sign-in is not case-sensitive, and accounts created before usernames were lower-cased are still accepted.
-- Account dialog (header **Account** button): optional display name (the greeting uses it, otherwise the username), optional phone number, profile picture (PNG, JPEG or WebP, up to 140 KB), About section, log out, and account deletion that needs the current password and a second confirmation. The username cannot be changed in this version, and email is not used for sign-in.
+- Accounts: register with an email address and a password, sign in with that email (OAuth2 password flow, JWT Bearer tokens), sign out. Sign-in ignores letter case. Each user sees only their own datasets; admins can access all.
+- Account dialog (header **Account** button): optional display name (the greeting uses it, otherwise the email address), optional phone number, profile picture (PNG, JPEG or WebP, up to 140 KB), About section, log out, and account deletion that needs the current password and a second confirmation. The email address cannot be changed in this version.
 - Light, dark, or automatic theme (header **Theme** button). The choice is stored in this browser only.
 - Data-quality counts and explicit removal of exact duplicates or rows with missing values.
 - Semantic-aware drag-and-drop/click-to-assign field wells for Bar, Line, Pie, and Scatter charts.
@@ -55,7 +55,7 @@ migrations/                   Versioned database schema migrations
 ```text
 user                      dataset                               visual
   id (PK)                   id (PK)                               id (PK)
-  username (unique)         owner_id (FK -> user.id)              dataset_id (FK -> dataset.id)
+  email (unique)            owner_id (FK -> user.id)              dataset_id (FK -> dataset.id)
   hashed_password           filename, rows, columns (JSON)        chart_type, fields (JSON), aggregation
   role (user | admin)       data, raw_data, profiles (JSON)       position
   created_at                semantic_model (JSON)                 created_at
@@ -68,8 +68,8 @@ One user owns many datasets; one dataset has many visuals (deletes cascade). The
 
 | Method | URL | Success | Errors |
 |---|---|---|---|
-| POST | `/api/v1/register` (JSON `username`, `password`) | 201 | 409, 422 |
-| POST | `/api/v1/token` (form `username`, `password`) | 200 | 401, 422 |
+| POST | `/api/v1/register` (JSON `email`, `password`) | 201 | 409, 422 |
+| POST | `/api/v1/token` (form `username` = email, `password`) | 200 | 401, 422 |
 | GET | `/api/v1/me` | 200 | 401 |
 | POST | `/api/v1/datasets` (multipart `file`) | 201 | 400, 413, 422 |
 | GET | `/api/v1/datasets?offset=&limit=` | 200 | 422 |
@@ -87,7 +87,7 @@ Every `/api/v1/datasets` and `/api/v1/visuals` route needs `Authorization: Beare
 - Passwords are stored only as bcrypt hashes (salted, deliberately slow) via `pwdlib`; they must be 8+ characters and at most 72 bytes.
 - `POST /api/v1/token` returns a JWT signed with `SECRET_KEY` (HS256) whose payload holds only `sub` (user id) and `exp`. It expires after `ACCESS_TOKEN_EXPIRE_MINUTES` (default 30); the user then signs in again.
 - `get_current_user` reloads the user from the database on every request, so deleted users are locked out and roles cannot be changed by editing a token.
-- The owner of an upload and every user's role are decided by the server, never by the request. Admins are created only with `python -m backend.create_admin USERNAME`.
+- The owner of an upload and every user's role are decided by the server, never by the request. Admins are created only with `python -m backend.create_admin EMAIL`. If the database came from before the email change, run `alembic upgrade head` first; the migration stops and lists any account whose username is not an email address, so those accounts must be fixed before it can finish.
 - The browser keeps the token in `sessionStorage` (cleared when the tab closes or on **Log out**); every page escapes the data it renders. Use HTTPS in production so tokens and passwords are not sent in plain text.
 
 ## Run locally
