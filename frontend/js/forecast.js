@@ -211,6 +211,7 @@ const ForecastWorkspace = (() => {
       lastReport = { dataset_id: dataset.id, filename: dataset.filename, configuration: payload, result,
         generated_at: new Date().toISOString() };
       render(result);
+      loadHistory();
     } catch (error) {
       UI.setMessage("forecastMessage", error.message || t("forecast.error"), "error");
     } finally {
@@ -218,6 +219,68 @@ const ForecastWorkspace = (() => {
       el("forecastControls").disabled = false;
       el("runForecast").textContent = t("forecast.run");
       eligibility();
+    }
+  }
+
+  // ---------- saved forecast runs ----------
+  const formatWhen = (value) => new Intl.DateTimeFormat(I18n.language() === "vi" ? "vi-VN" : "en-US",
+    { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+
+  async function loadHistory() {
+    const dataset = AppState.activeDataset();
+    if (!dataset) return;
+    el("forecastHistory").hidden = false;
+    try {
+      renderHistory(await Api.listForecastRuns(dataset.id));
+    } catch (error) {
+      UI.setMessage("forecastMessage", error.message, "error");
+    }
+  }
+
+  function renderHistory(runs) {
+    const list = el("forecastHistoryList");
+    if (!runs.length) {
+      list.innerHTML = `<p class="muted">${escape(t("forecast.historyEmpty"))}</p>`;
+      return;
+    }
+    list.innerHTML = `<ul class="history-list">${runs.map((run) => `
+      <li class="history-item">
+        <span>${escape(t("forecast.historyRun", { id: run.id }))} · ${escape(formatWhen(run.created_at))} · ${escape(run.target_column)} · ${escape(run.horizon)}</span>
+        <span class="history-actions">
+          <button type="button" class="button-secondary" data-open-run="${escape(run.id)}">${escape(t("forecast.historyOpen"))}</button>
+          <button type="button" class="button-danger" data-delete-run="${escape(run.id)}">${escape(t("forecast.historyDelete"))}</button>
+        </span>
+      </li>`).join("")}</ul>`;
+  }
+
+  async function openRun(id) {
+    try {
+      const run = await Api.getForecastRun(id);
+      const result = run.result;
+      const tested = t("forecast.historyTested", {
+        mae: number(result.test_metrics.mae), naive: number(result.naive_test_metrics.mae),
+      });
+      const next = (result.forecast || []).slice(0, 7)
+        .map((point) => `${point.date || point.step}: ${number(point.predicted)}`).join(" · ");
+      el("forecastHistoryDetail").innerHTML = `<article class="history-detail">
+        <h3>${escape(t("forecast.historyRun", { id: run.id }))}</h3>
+        <p>${escape(t(modelNames[run.selected_model] || "forecast.naive"))} · ${escape(run.target_column)} · ${escape(run.horizon)}</p>
+        <p>${escape(tested)}</p>
+        <p class="muted small">${escape(t("forecast.historyFuture"))}: ${escape(next)}</p>
+      </article>`;
+    } catch (error) {
+      UI.setMessage("forecastMessage", error.message, "error");
+    }
+  }
+
+  async function deleteRun(id) {
+    if (!window.confirm(t("forecast.historyDeleteConfirm"))) return;
+    try {
+      await Api.deleteForecastRun(id);
+      el("forecastHistoryDetail").innerHTML = "";
+      await loadHistory();
+    } catch (error) {
+      UI.setMessage("forecastMessage", error.message, "error");
     }
   }
 
@@ -241,6 +304,13 @@ const ForecastWorkspace = (() => {
     ].map(([label, value]) => `<div class="stat"><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`).join("");
     el("forecastForm").addEventListener("submit", run);
     el("reviewFeatures").addEventListener("click", reviewFeatures);
+    el("forecastHistoryList").addEventListener("click", (event) => {
+      const open = event.target.closest("[data-open-run]");
+      const remove = event.target.closest("[data-delete-run]");
+      if (open) openRun(open.dataset.openRun);
+      if (remove) deleteRun(remove.dataset.deleteRun);
+    });
+    loadHistory();
     el("downloadForecast").addEventListener("click", downloadReport);
     ["showInsights", "showEvaluation", "showFuture"].forEach((id) => el(id).addEventListener("change", applyReportVisibility));
     el("forecastForm").addEventListener("input", (event) => {

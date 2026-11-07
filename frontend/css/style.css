@@ -1564,6 +1564,50 @@ html[data-theme="dark"] {
   border-radius: 14px;
 }
 
+/* Saved forecast runs */
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.history-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.history-detail {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--brand-tint);
+}
+
+/* Touch screens: remind the user that fields are tapped, not dragged. */
+.touch-hint {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touch-hint {
+    display: block;
+  }
+}
+
 /* Phones: stack the dialog content and let the header tools wrap. */
 @media (max-width: 480px) {
   .account-dialog {

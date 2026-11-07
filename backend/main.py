@@ -16,6 +16,7 @@ from backend.config import ALLOWED_ORIGINS
 from backend.database import create_db_and_tables
 from backend.models import ForecastRequest, ForecastResponse, HealthResponse
 from backend.routers import auth, datasets, forecast as dataset_forecast, visuals
+from backend.routers.forecast import runs_router as forecast_runs
 from backend.security import require_secret_key
 from backend.services.forecast_service import ForecastValidationError, run_forecast
 
@@ -94,6 +95,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(datasets.router, prefix="/api/v1")
 app.include_router(visuals.router, prefix="/api/v1")
 app.include_router(dataset_forecast.router, prefix="/api/v1")
+app.include_router(forecast_runs, prefix="/api/v1")
 
 # Same-origin local development option: http://127.0.0.1:8000/app/
 app.mount("/app", StaticFiles(directory=str(FRONTEND_DIRECTORY), html=True), name="frontend")

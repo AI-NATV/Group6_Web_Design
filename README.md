@@ -9,6 +9,7 @@ A semantic-aware Mini BI application for CSV data: upload and review fields, bui
 - Paginated preview, type/role recommendations, confidence, and user overrides.
 - Datasets, semantic reviews, cleaned rows and dashboards saved in a database (SQLite by default, PostgreSQL via `DATABASE_URL`) and available again in a new browser.
 - Accounts: register with an email address and a password, sign in with that email (OAuth2 password flow, JWT Bearer tokens), sign out. Sign-in ignores letter case. Each user sees only their own datasets; admins can access all.
+- Saved forecast runs: every assisted forecast is stored for its dataset, listed on the Forecast page, and can be reopened or deleted.
 - Account dialog (header **Account** button): optional display name (the greeting uses it, otherwise the email address), optional phone number, profile picture (PNG, JPEG or WebP, up to 140 KB), About section, log out, and account deletion that needs the current password and a second confirmation. The email address cannot be changed in this version.
 - Light, dark, or automatic theme (header **Theme** button). The choice is stored in this browser only.
 - Data-quality counts and explicit removal of exact duplicates or rows with missing values.
@@ -78,7 +79,9 @@ One user owns many datasets; one dataset has many visuals (deletes cascade). The
 | PATCH / DELETE | `/api/v1/visuals/{visual_id}` | 200 / 204 | 404, 422 |
 | POST | `/forecast` | 200 | 400, 422 |
 | POST | `/api/v1/datasets/{id}/feature-review` | 200 | 400, 401, 403, 404, 422 |
-| POST | `/api/v1/datasets/{id}/forecast` | 200 | 400, 401, 403, 404, 422 |
+| POST | `/api/v1/datasets/{id}/forecast` | 200 (saves a run) | 400, 401, 403, 404, 422 |
+| GET | `/api/v1/datasets/{id}/forecast-runs` | 200 | 401, 403, 404 |
+| GET / DELETE | `/api/v1/forecast-runs/{id}` | 200 / 204 | 401, 403, 404 |
 
 Every `/api/v1/datasets` and `/api/v1/visuals` route needs `Authorization: Bearer <token>` (401 without a valid token) and only works on the caller's own datasets (403 otherwise; admins may access all). `/health`, `/forecast` (stateless, stores nothing) and the static pages are public; the pages themselves redirect to `login.html` when nobody is signed in.
 
@@ -203,6 +206,20 @@ Install the updated `requirements.txt` (adds scikit-learn), then restart the bac
 - UI additions support EN/VI. Report visibility is customizable for the current page; JSON download includes settings and results. Forecast runs/models are not persisted in the database or added to the saved Visualize dashboard yet.
 
 The historical-snapshot assumption still requires human review: a row's date may differ from when a report became available, and revised/backfilled values may not have existed at the time. Name heuristics cannot detect every leakage source. This version does not take future covariate scenarios, categorical predictors, or automatically infer product identity.
+
+### What the forecast means
+
+The Forecast page compares simple, transparent methods on the series you choose:
+
+- **Naive:** repeats the last observed value.
+- **Mean of the last 7 observations.**
+- **Damped Holt trend:** a smoothed level and trend, with the trend damped over the horizon.
+- **Seasonal Naive:** repeats the value one season earlier, only when you set a season length.
+- **Ridge regression on historical features:** only if you confirm features. It uses past values of the target and the selected features, never values inside the period it predicts.
+
+The method with the lowest error on two validation windows is chosen. The held-out test is used only to report accuracy, so it cannot change the choice. Every run is saved for the dataset and can be reopened or deleted from the Forecast page.
+
+**The results are for reference only.** They describe patterns in the uploaded file and do not guarantee future sales. Do not use them for business decisions without a full analysis of the product, the market and other factors.
 
 ## Current limitations
 

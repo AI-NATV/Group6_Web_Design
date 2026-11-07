@@ -25,6 +25,11 @@
     <div id="forecastApp" hidden>
       <section class="workspace-intro"><p class="eyebrow" data-i18n="forecast.eyebrow">Forecast workspace</p><h1 data-i18n="forecast.title">Test the past. Forecast what comes next.</h1><p data-i18n="forecast.intro">Select one time series from your active dataset, compare simple forecasting methods, and inspect their errors before using the forecast.</p></section>
       <section class="card" aria-labelledby="forecastDataHeading"><h2 id="forecastDataHeading" data-i18n="forecast.context">Active data context</h2><div id="forecastDatasetContext" class="stats"></div></section>
+      <section class="card" aria-labelledby="forecastMethodIntroHeading">
+        <h2 id="forecastMethodIntroHeading" data-i18n="forecast.methodTitle">How the forecast works</h2>
+        <p data-i18n="forecast.methodText">The app compares simple, transparent methods on your data.</p>
+        <p class="muted small" data-i18n="forecast.disclaimer">These results are for reference only.</p>
+      </section>
       <section class="card" aria-labelledby="forecastSetupHeading">
         <div class="section-heading forecast-heading"><div><h2 id="forecastSetupHeading" data-i18n="forecast.define">1. Define your forecasting task</h2></div><button id="forecastHelp" class="help-button" type="button" aria-expanded="false" aria-controls="forecastHelpPanel" aria-label="How to configure a forecast" data-i18n-aria-label="forecast.helpLabel">?</button></div>
         <aside id="forecastHelpPanel" class="forecast-help" hidden aria-labelledby="forecastHelpTitle">
@@ -108,6 +113,12 @@
         </section>
       </div>
     </div>
+    <section id="forecastHistory" class="card" aria-labelledby="forecastHistoryHeading" hidden>
+      <h2 id="forecastHistoryHeading" data-i18n="forecast.historyTitle">Saved forecast runs</h2>
+      <p class="muted" data-i18n="forecast.historyIntro">Each forecast you run is saved for this dataset.</p>
+      <div id="forecastHistoryList"></div>
+      <div id="forecastHistoryDetail" aria-live="polite"></div>
+    </section>
   </main>
 
   <footer class="app-footer">

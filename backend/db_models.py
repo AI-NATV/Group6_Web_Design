@@ -119,6 +119,22 @@ def as_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
+class ForecastRun(SQLModel, table=True):
+    """One saved forecast result, so the owner can review earlier runs later."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    dataset_id: int = Field(foreign_key="dataset.id", index=True, ondelete="CASCADE")
+    time_column: str = Field(max_length=200)
+    target_column: str = Field(max_length=200)
+    horizon: int = Field(ge=1, le=90)
+    selected_model: str = Field(max_length=40)
+    features: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    # The response without the long history series (the dataset itself keeps the data).
+    result: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 # ---------- Account schemas ----------
 
 class UserCreate(UserBase):
@@ -229,6 +245,25 @@ class DatasetUpdate(SQLModel):
         if value is None:
             raise ValueError("cannot be null")
         return value
+
+
+# ---------- Forecast run schemas ----------
+
+class ForecastRunSummary(SQLModel):
+    id: int
+    dataset_id: int
+    time_column: str
+    target_column: str
+    horizon: int
+    selected_model: str
+    features: list[str]
+    created_at: datetime
+
+    _utc = field_validator("created_at")(as_utc)
+
+
+class ForecastRunPublic(ForecastRunSummary):
+    result: dict[str, Any]
 
 
 # ---------- Visual schemas ----------
