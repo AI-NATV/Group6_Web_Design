@@ -77,6 +77,16 @@ def test_login_returns_a_bearer_token_for_me(client, make_user):
     assert me.json()["email"] == "alice@example.com"
 
 
+def test_registered_email_sign_in_ignores_email_letter_case(client):
+    registration = client.post(REGISTER, json={"email": "Tuan.Nguyen@Example.com", "password": "password123"})
+    assert registration.status_code == 201
+    assert registration.json()["email"] == "tuan.nguyen@example.com"
+
+    for email in ("Tuan.Nguyen@Example.com", "tuan.nguyen@example.com", "TUAN.NGUYEN@EXAMPLE.COM"):
+        response = client.post(TOKEN, data={"username": email, "password": "password123"})
+        assert response.status_code == 200, email
+
+
 def test_wrong_password_and_unknown_user_get_the_same_401(client, make_user):
     make_user("alice", "password123")
 

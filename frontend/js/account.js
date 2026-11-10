@@ -116,6 +116,7 @@ const Account = (() => {
         <p class="muted small">${escape(t("account.deleteText"))}</p>
         <label for="accountDeletePassword">${escape(t("account.password"))}</label>
         <input id="accountDeletePassword" type="password" autocomplete="current-password">
+        <div id="accountDeleteMessage" class="account-delete-message" aria-live="polite"></div>
         <button id="accountDeleteStart" class="button-danger" type="button" disabled>${escape(t("account.deleteButton"))}</button>
         <div id="accountDeleteConfirm" class="account-confirm" hidden>
           <p><strong>${escape(t("account.deleteConfirm"))}</strong></p>
@@ -180,12 +181,20 @@ const Account = (() => {
     const password = dialog.querySelector("#accountDeletePassword");
     const start = dialog.querySelector("#accountDeleteStart");
     const confirmBox = dialog.querySelector("#accountDeleteConfirm");
+    const deleteMessage = dialog.querySelector("#accountDeleteMessage");
     password.addEventListener("input", () => {
       start.disabled = password.value.length === 0;
       confirmBox.hidden = true;
+      UI.setMessage(deleteMessage, "");
     });
-    start.addEventListener("click", () => { confirmBox.hidden = false; });
-    dialog.querySelector("#accountDeleteCancel").addEventListener("click", () => { confirmBox.hidden = true; });
+    start.addEventListener("click", () => {
+      UI.setMessage(deleteMessage, "");
+      confirmBox.hidden = false;
+    });
+    dialog.querySelector("#accountDeleteCancel").addEventListener("click", () => {
+      confirmBox.hidden = true;
+      UI.setMessage(deleteMessage, "");
+    });
     dialog.querySelector("#accountDeleteFinal").addEventListener("click", () => deleteAccount(dialog));
   }
 
@@ -240,7 +249,10 @@ const Account = (() => {
     try {
       await Api.deleteAccount(password);
     } catch (error) {
-      setAccountMessage(dialog, error.message, "error");
+      const message = error.message === "Password is incorrect"
+        ? t("account.passwordIncorrect")
+        : error.message;
+      UI.setMessage(dialog.querySelector("#accountDeleteMessage"), message, "error");
       return;
     }
     // The server removed the account and its datasets; forget this tab's copy too.

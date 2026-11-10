@@ -51,6 +51,7 @@ const AppState = (() => {
       chartType: visual.chart_type,
       fields: visual.fields,
       aggregation: visual.aggregation,
+      dateFilter: visual.date_filter || null,
       createdAt: visual.created_at,
     };
   }
@@ -129,6 +130,7 @@ const AppState = (() => {
     const entry = requireActive();
     const saved = await Api.createVisual(entry.dataset.id, {
       chart_type: visual.chartType, fields: visual.fields, aggregation: visual.aggregation,
+      date_filter: visual.dateFilter,
     });
     entry.dashboard.push(toVisual(saved));
     return writeCache(entry);

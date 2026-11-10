@@ -113,6 +113,31 @@ def test_visuals_are_saved_in_dashboard_order(alice):
     assert [visual["chart_type"] for visual in listed] == ["bar", "scatter"]
 
 
+def test_visual_date_filter_is_saved_and_validated_against_dataset(alice):
+    dataset_id = upload(alice)["id"]
+    body = {**BAR, "date_filter": {"column": "date", "dates": ["2026-09-02"]}}
+
+    created = alice.post(f"{DATASETS}/{dataset_id}/visuals", json=body)
+
+    assert created.status_code == 201
+    assert created.json()["date_filter"] == body["date_filter"]
+    assert alice.get(f"{DATASETS}/{dataset_id}/visuals").json()[0]["date_filter"] == body["date_filter"]
+
+    unknown_date = {**BAR, "date_filter": {"column": "date", "dates": ["2026-09-03"]}}
+    unknown_column = {**BAR, "date_filter": {"column": "unknown", "dates": []}}
+    assert alice.post(f"{DATASETS}/{dataset_id}/visuals", json=unknown_date).status_code == 400
+    assert alice.post(f"{DATASETS}/{dataset_id}/visuals", json=unknown_column).status_code == 400
+
+
+def test_visual_date_filter_requires_unique_iso_dates(alice):
+    dataset_id = upload(alice)["id"]
+    duplicate_dates = {**BAR, "date_filter": {"column": "date", "dates": ["2026-09-01", "2026-09-01"]}}
+    invalid_date = {**BAR, "date_filter": {"column": "date", "dates": ["09/01/2026"]}}
+
+    assert alice.post(f"{DATASETS}/{dataset_id}/visuals", json=duplicate_dates).status_code == 422
+    assert alice.post(f"{DATASETS}/{dataset_id}/visuals", json=invalid_date).status_code == 422
+
+
 @pytest.mark.parametrize("body", [
     {"chart_type": "bar", "fields": {"x": "revenue", "y": "revenue"}},
     {"chart_type": "scatter", "fields": {"dimension": "region", "measure": "revenue"}},

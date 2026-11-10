@@ -74,5 +74,6 @@ const Api = (() => {
     updateProfile: (changes) => request("/api/v1/me", json("PATCH", changes)),
     setAvatar: (avatar) => request("/api/v1/me/avatar", json("PUT", { avatar })),
     deleteAccount: (password) => request("/api/v1/me", json("DELETE", { password })),
+    submitFeedback: (payload) => request("/api/v1/feedback", json("POST", payload)),
   };
 })();

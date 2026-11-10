@@ -4,53 +4,138 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
-  <title>Sign in · Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=footer-layout-1">
+  <title>Sign in Â· Revenue Analytics</title>
+  <link rel="stylesheet" href="css/style.css?v=mobile-ux-3">
 </head>
 <body class="auth-page" data-page-title="page.login">
   <header class="app-header">
-    <div class="header-inner">
+    <div class="header-inner auth-header-inner">
       <a class="brand" href="login.html"><span>Revenue</span> Analytics</a>
+      <nav class="auth-nav" aria-label="Main navigation">
+        <a href="#project" data-i18n="landing.navOverview">Overview</a>
+        <a href="#features" data-i18n="landing.navFeatures">Features</a>
+        <a href="#login" data-i18n="landing.navSignIn">Sign in</a>
+        <a href="#feedback" data-i18n="landing.navFeedback">Feedback</a>
+      </nav>
       <div class="header-status"><label class="language-control"><span class="sr-only" data-i18n="language.label">Language</span><select id="languageSelect" name="language" aria-label="Language" data-i18n-aria-label="language.label"><option value="en">EN</option><option value="vi">VI</option></select></label><span id="apiStatus" class="status">Checking API…</span></div>
     </div>
   </header>
 
-  <main class="page-shell">
-    <section class="workspace-intro">
-      <p class="eyebrow" data-i18n="auth.eyebrow">Account</p>
-      <h1 data-i18n="auth.title">Sign in to your workspace</h1>
-      <p data-i18n="auth.intro">Your datasets and dashboards are private to your account.</p>
+  <main class="auth-landing">
+    <section class="auth-hero" aria-labelledby="landingTitle">
+      <div class="auth-hero-inner">
+        <div class="auth-hero-copy">
+          <p class="auth-kicker" data-i18n="landing.kicker">DATA Â· VISUALIZE Â· FORECAST</p>
+          <h1 id="landingTitle" data-i18n="landing.title">Turn product price history into a clearer view of what comes next.</h1>
+          <div class="auth-hero-art" aria-label="Price trend illustration" data-i18n-aria-label="landing.artAlt">
+            <img src="img/login-illustration.webp" alt="" width="1000" height="667">
+            <div class="auth-art-caption"><span data-i18n="landing.artLabel">PRICE TREND SNAPSHOT</span><strong data-i18n="landing.artValue">From data to insight</strong></div>
+            <span class="auth-art-badge" aria-hidden="true">↗</span>
+          </div>
+          <p class="auth-hero-lead" data-i18n="landing.lead">A practical analytics workspace to explore your product data, understand price patterns, and compare forecasts before making decisions.</p>
+          <div class="auth-hero-actions">
+            <a class="auth-primary-link" href="#login" data-i18n="landing.cta">Explore your workspace</a>
+            <a class="auth-secondary-link" href="#project" data-i18n="landing.learnMore">Discover the project</a>
+          </div>
+          <ul class="auth-hero-points">
+            <li data-i18n="landing.pointData">Your data stays in your private workspace</li>
+            <li data-i18n="landing.pointForecast">Transparent backtesting, not a black box</li>
+          </ul>
+        </div>
+      </div>
+      <a class="auth-scroll-cue" href="#project" aria-label="Scroll to project overview" data-i18n-aria-label="landing.scroll"><span aria-hidden="true">↓</span></a>
     </section>
 
-    <img class="auth-illustration" src="img/login-illustration.webp" alt="Charts of revenue rising and falling, with a hand drawing on a holographic graph" width="640" height="400" loading="lazy">
-    <div id="authMessage" aria-live="polite"></div>
+    <section id="project" class="auth-project-section" aria-labelledby="projectTitle">
+      <div class="auth-section-inner">
+        <div class="auth-project-intro">
+          <div>
+            <p class="eyebrow" data-i18n="landing.projectEyebrow">ABOUT THE PROJECT</p>
+            <h2 id="projectTitle" data-i18n="landing.projectTitle">A mini BI workspace built around product price data.</h2>
+          </div>
+          <p data-i18n="landing.projectDescription">Upload a CSV, review how its fields are understood, explore the data through interactive charts, and forecast a selected product series in one place.</p>
+        </div>
 
-    <section class="card auth-card" aria-labelledby="loginHeading">
+        <div id="features" class="auth-feature-grid">
+          <article class="auth-feature-card">
+            <span class="auth-feature-icon" aria-hidden="true">01</span>
+            <h3 data-i18n="landing.featureDataTitle">Understand your data</h3>
+            <p data-i18n="landing.featureDataText">Review price history, spot missing values and duplicates, and confirm the meaning of each column.</p>
+          </article>
+          <article class="auth-feature-card">
+            <span class="auth-feature-icon" aria-hidden="true">02</span>
+            <h3 data-i18n="landing.featureForecastTitle">Compare forecasting techniques</h3>
+            <p data-i18n="landing.featureForecastText">Evaluate Naive, moving-average, damped Holt and optional seasonal or Ridge models using chronological validation, MAE and RMSE.</p>
+          </article>
+          <article class="auth-feature-card">
+            <span class="auth-feature-icon" aria-hidden="true">03</span>
+            <h3 data-i18n="landing.featurePurposeTitle">Make analysis more useful</h3>
+            <p data-i18n="landing.featurePurposeText">Give users a clear way to visualize trends, inspect forecast errors, and keep their datasets and dashboards organized.</p>
+          </article>
+        </div>
+        <p class="auth-method-note" data-i18n="landing.methodNote">Forecasts are estimates for exploration—not guarantees. Model performance is shown on historical holdout data.</p>
+      </div>
+    </section>
+
+    <section id="login" class="auth-login-section" aria-labelledby="loginHeading">
+      <div class="auth-login-copy">
+        <p class="eyebrow" data-i18n="auth.eyebrow">ACCOUNT</p>
+        <h2 data-i18n="auth.title">Sign in to your workspace</h2>
+        <p data-i18n="auth.intro">Your datasets and dashboards are private to your account.</p>
+      </div>
+      <div class="card auth-card">
         <h2 id="loginHeading" data-i18n="auth.signIn">Sign in</h2>
         <form id="loginForm" class="auth-form" action="/api/v1/token" method="post" novalidate>
           <label for="loginEmail" data-i18n="auth.email">Email</label>
           <input id="loginEmail" name="username" type="email" autocomplete="email" required maxlength="254">
           <label for="loginPassword" data-i18n="auth.password">Password</label>
           <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          <p class="muted small login-case-hint" data-i18n="auth.loginCaseHint">Email is not case-sensitive; your password is.</p>
           <button id="loginButton" type="submit" data-i18n="auth.signIn">Sign in</button>
         </form>
+        <div id="authMessage" aria-live="polite"></div>
         <div class="auth-switch"><span data-i18n="auth.newHere">New here?</span><a href="register.html" class="auth-switch-link" data-i18n="auth.createAccountLink">Create an account</a></div>
+      </div>
+    </section>
+
+    <section id="feedback" class="auth-feedback-section" aria-labelledby="feedbackTitle">
+      <div class="auth-feedback-heading">
+        <p class="eyebrow" data-i18n="feedback.eyebrow">YOUR VOICE MATTERS</p>
+        <h2 id="feedbackTitle" data-i18n="feedback.title">Leave us your feedback</h2>
+        <p data-i18n="feedback.intro">Share your experience or ideas to help us improve the project.</p>
+      </div>
+      <form id="feedbackForm" class="feedback-form" action="/api/v1/feedback" method="post">
+        <div class="feedback-form-row">
+          <label class="sr-only" for="feedbackName" data-i18n="feedback.name">Full name</label>
+          <input id="feedbackName" name="full_name" type="text" autocomplete="name" maxlength="100" placeholder="Full name" data-i18n-placeholder="feedback.name" required>
+          <label class="sr-only" for="feedbackEmail" data-i18n="auth.email">Email</label>
+          <input id="feedbackEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="Email" data-i18n-placeholder="auth.email" required>
+        </div>
+        <label class="sr-only" for="feedbackMessageText" data-i18n="feedback.message">Your message</label>
+        <textarea id="feedbackMessageText" name="message" rows="5" minlength="8" maxlength="2000" placeholder="Your message" data-i18n-placeholder="feedback.message" required></textarea>
+        <div class="feedback-submit-row">
+          <button id="feedbackSubmit" class="feedback-submit" type="submit" data-i18n="feedback.submit">Send feedback</button>
+          <p id="feedbackStatus" class="feedback-status" aria-live="polite"></p>
+        </div>
+      </form>
+      <p class="feedback-privacy" data-i18n="feedback.privacy">Your feedback is stored securely and can only be reviewed by project administrators.</p>
     </section>
   </main>
 
   <footer class="app-footer">
     <div class="footer-inner">
-      <p data-i18n="footer.project">Revenue Analytics · Group 6 · Web Design and Programming</p>
+      <p data-i18n="footer.project">Revenue Analytics Â· Group 6 Â· Web Design and Programming</p>
       <p data-i18n="footer.privacy">Datasets and saved visuals are stored in the project database and visible only to your account.</p>
     </div>
   </footer>
 
   <script src="js/state.js?v=auth-pages-1" defer></script>
   <script src="js/auth.js?v=auth-pages-1" defer></script>
-  <script src="js/api.js?v=auth-pages-1" defer></script>
-  <script src="js/i18n.js?v=auth-pages-1" defer></script>
+  <script src="js/api.js?v=feedback-1" defer></script>
+  <script src="js/i18n.js?v=mobile-ux-3" defer></script>
   <script src="js/ui.js?v=auth-pages-1" defer></script>
-  <script src="js/account.js?v=account-1" defer></script>
+  <script src="js/account.js?v=account-2" defer></script>
+  <script src="js/feedback.js?v=feedback-1" defer></script>
   <script src="js/login.js?v=auth-pages-1" defer></script>
 </body>
 </html>

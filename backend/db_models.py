@@ -6,7 +6,7 @@ request/response schemas, so the API never exposes more than it intends to.
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -108,6 +108,7 @@ class Visual(SQLModel, table=True):
     chart_type: ChartType
     fields: dict[str, str] = Field(sa_column=Column(JSON, nullable=False))
     aggregation: Aggregation = Aggregation.sum
+    date_filter: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     position: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -133,6 +134,16 @@ class ForecastRun(SQLModel, table=True):
     # The response without the long history series (the dataset itself keeps the data).
     result: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class Feedback(SQLModel, table=True):
+    """Public feedback submitted from the sign-in landing page."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    full_name: str = Field(max_length=100)
+    email: str = Field(max_length=254)
+    message: str = Field(max_length=2000)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 # ---------- Account schemas ----------
@@ -209,6 +220,49 @@ class Token(SQLModel):
     token_type: str = "bearer"
 
 
+class FeedbackCreate(SQLModel):
+    full_name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    message: str = Field(min_length=8, max_length=2000)
+
+    @field_validator("full_name")
+    @classmethod
+    def clean_feedback_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("name cannot be blank")
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def normalize_feedback_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if len(value) > 254 or not re.fullmatch(EMAIL_PATTERN, value):
+            raise ValueError("enter a valid email address")
+        return value
+
+    @field_validator("message")
+    @classmethod
+    def clean_feedback_message(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 8:
+            raise ValueError("message must contain at least 8 characters")
+        return value
+
+
+class FeedbackReceipt(SQLModel):
+    id: int
+    created_at: datetime
+
+    _utc = field_validator("created_at")(as_utc)
+
+
+class FeedbackPublic(FeedbackReceipt):
+    full_name: str
+    email: str
+    message: str
+
+
 # ---------- Dataset schemas ----------
 
 class DatasetSummary(SQLModel):
@@ -280,6 +334,7 @@ class VisualCreate(SQLModel):
     chart_type: ChartType
     fields: dict[str, str] = Field(schema_extra={"examples": [{"dimension": "region", "measure": "revenue"}]})
     aggregation: Aggregation = Aggregation.sum
+    date_filter: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def fields_match_chart_type(self):
@@ -288,6 +343,19 @@ class VisualCreate(SQLModel):
             raise ValueError(f"{self.chart_type.value} charts need exactly these fields: {', '.join(sorted(expected))}")
         if any(not column.strip() for column in self.fields.values()):
             raise ValueError("field names cannot be blank")
+        if self.date_filter is not None:
+            if set(self.date_filter) != {"column", "dates"}:
+                raise ValueError("date_filter must contain exactly a column and dates")
+            column = self.date_filter["column"]
+            dates = self.date_filter["dates"]
+            if not isinstance(column, str) or not column.strip():
+                raise ValueError("date_filter column cannot be blank")
+            if not isinstance(dates, list) or any(not isinstance(value, str) for value in dates):
+                raise ValueError("date_filter dates must be a list of strings")
+            if len(dates) != len(set(dates)):
+                raise ValueError("date_filter dates must be unique")
+            if any(date.fromisoformat(value).isoformat() != value for value in dates):
+                raise ValueError("date_filter dates must use YYYY-MM-DD format")
         return self
 
 
