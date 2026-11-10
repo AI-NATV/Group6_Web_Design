@@ -4,10 +4,10 @@ const LoginPage = (() => {
   const params = new URLSearchParams(window.location.search);
   const next = Auth.safeNext(params.get("next"));
 
-  // Mirrors the server rules; the server still validates every request.
-  function usernameError(username) {
-    if (username.length < 3 || username.length > 30) return t("auth.usernameLength");
-    if (!/^[A-Za-z0-9._-]+$/.test(username)) return t("auth.usernameChars");
+  // Mirrors the server rule; the server still validates every request.
+  function emailError(email) {
+    if (email.length > 254) return t("auth.emailTooLong");
+    if (!/^[a-z0-9._%+\-]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}$/i.test(email)) return t("auth.emailInvalid");
     return "";
   }
 
@@ -18,8 +18,8 @@ const LoginPage = (() => {
     return "";
   }
 
-  async function signIn(username, password) {
-    const { access_token: token } = await Api.login(username, password);
+  async function signIn(email, password) {
+    const { access_token: token } = await Api.login(email, password);
     Auth.clearSession(); // drop anything cached for a previous account
     Auth.setToken(token);
     Auth.setUser(await Api.me());
@@ -40,28 +40,28 @@ const LoginPage = (() => {
 
   function onLogin(event) {
     event.preventDefault();
-    const username = el("loginUsername").value.trim();
+    const email = el("loginEmail").value.trim();
     const password = el("loginPassword").value;
-    if (!username || !password) {
+    if (!email || !password) {
       UI.setMessage("authMessage", t("auth.required"), "error");
       return;
     }
-    submit(event.target, el("loginButton"), "auth.signingIn", "auth.signIn", () => signIn(username, password));
+    submit(event.target, el("loginButton"), "auth.signingIn", "auth.signIn", () => signIn(email, password));
   }
 
   function onRegister(event) {
     event.preventDefault();
-    const username = el("registerUsername").value.trim();
+    const email = el("registerEmail").value.trim();
     const password = el("registerPassword").value;
-    const error = usernameError(username) || passwordError(password)
+    const error = emailError(email) || passwordError(password)
       || (password !== el("registerConfirm").value ? t("auth.mismatch") : "");
     if (error) {
       UI.setMessage("authMessage", error, "error");
       return;
     }
     submit(event.target, el("registerButton"), "auth.creating", "auth.registerButton", async () => {
-      await Api.register(username, password);
-      await signIn(username, password);
+      await Api.register(email, password);
+      await signIn(email, password);
     });
   }
 
@@ -72,6 +72,7 @@ const LoginPage = (() => {
     }
     if (params.get("reason") === "expired") UI.setMessage("authMessage", t("auth.expired"), "warning");
     if (params.get("reason") === "loggedout") UI.setMessage("authMessage", t("auth.loggedOut"));
+    if (params.get("reason") === "deleted") UI.setMessage("authMessage", t("auth.deleted"));
     UI.checkApiStatus();
     el("loginForm")?.addEventListener("submit", onLogin);
     el("registerForm")?.addEventListener("submit", onRegister);

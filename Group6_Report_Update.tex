@@ -1,0 +1,213 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=24mm,headheight=14pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{needspace}
+
+\definecolor{brand}{HTML}{3730A3}
+\definecolor{ink}{HTML}{17243D}
+\definecolor{muted}{HTML}{52627A}
+\definecolor{pale}{HTML}{F1F3FF}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=brand,
+  urlcolor=brand,
+  pdftitle={Revenue Analytics Dashboard - Implementation Update},
+  pdfauthor={Group 06}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlist[itemize]{leftmargin=18pt,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=20pt,itemsep=2pt,topsep=3pt}
+\renewcommand{\arraystretch}{1.2}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{muted}Revenue Analytics Dashboard}
+\fancyhead[R]{\small\color{muted}Group 06 -- Implementation update}
+\fancyfoot[L]{\small\color{muted}Supersedes earlier status where inconsistent}
+\fancyfoot[R]{\small\color{muted}Update \thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+\newcommand{\sectiontitle}[1]{%
+  \Needspace{5\baselineskip}\vspace{2pt}\section*{\color{brand}#1}\vspace{-5pt}\hrule height 0.6pt\vspace{7pt}
+}
+
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries\color{brand}REVENUE ANALYTICS DASHBOARD}\\[4pt]
+  {\large Implementation and Verification Update}\\[7pt]
+  {\color{muted}Group 06 \quad|\quad Web Design and Programming}\\
+  {\color{muted}Status date: 10 November 2026}
+\end{center}
+
+\vspace{5pt}
+\noindent\colorbox{pale}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{%
+\textbf{Purpose of this addendum.} This update is appended to the report
+\texttt{Group6\_Report\_LaTeX\_\_1\_.pdf}. The original PDF is retained unchanged
+because its editable LaTeX source was not present in the project. This addendum
+records the implemented state and supersedes earlier report statements wherever
+they conflict with the current code, especially the database schema, chart
+interaction, feedback, account functions, migration status, and test count.
+}}
+
+\sectiontitle{1. Current product scope}
+
+Revenue Analytics is a browser-based mini BI application for students, small
+sellers or teams, and analysts who have product or sales data in CSV files. It
+supports dataset review and preparation, interactive charts, saved dashboards,
+and forecasts evaluated against held-out historical data. It is not a live
+market feed or an automated decision system.
+
+\begin{itemize}
+  \item \textbf{Data workspace:} validates CSV uploads (maximum 10 MiB), previews
+  original and normalized cell values, recommends column types and roles, and
+  reports missing values and exact duplicate rows. Common date, number,
+  currency, and percentage formats are normalized where unambiguous. Removing
+  duplicate or incomplete rows is an explicit user action; the importer does
+  not silently delete them.
+  \item \textbf{Visualize workspace:} supports Bar, Line, Pie, and Scatter charts,
+  SUM, AVERAGE, COUNT, MIN, and MAX aggregation, dashboards with saved/reordered/
+  removable visuals, and touch-friendly field dropdowns as an alternative to
+  drag-and-drop.
+  \item \textbf{Forecast workspace:} evaluates one selected numeric time series,
+  optionally filtered to a product or group. It shows model comparison,
+  held-out performance, future point estimates, data warnings, and saved runs.
+\end{itemize}
+
+\sectiontitle{2. User interface and interaction updates}
+
+The sign-in page is also the bilingual project landing page. It now introduces
+the project, its intended users, supported forecasting methods, and the purpose
+and limitations of the application. The hero illustration is positioned below
+the bold heading without rotation and scales to narrow screens. The landing
+page includes a public feedback form.
+
+On phones and tablets, chart fields can be assigned from dropdowns within each
+field well; dragging is optional. When the dataset has usable ISO date values,
+all chart types provide a searchable date checklist with \textit{Select all},
+\textit{Select none}, and individual date selection. A selection immediately
+rebuilds the active chart and is retained when the chart type changes. Saved
+visuals persist the selected date column and dates, so the dashboard recreates
+the same filtered view.
+
+A Pie chart has one numeric measure and divides its aggregate into category
+slices. This is appropriate for showing composition; Bar or Line charts are
+available when comparing measures or trends. The interface explains this
+distinction rather than suggesting that a pie chart should accept multiple
+numeric measures.
+
+The field-search input disables browser autocomplete and is cleared when the
+Visualize page initializes. This prevents a stored email or other browser
+suggestion from filtering the field list and making the dataset appear absent.
+The selected CSV filename is shown before upload. Responsive layout was checked
+in browser viewports from 320 px to 1440 px; this is viewport emulation, not a
+claim of testing on every physical handset. Updated asset versions and
+revalidation of served HTML reduce the chance of showing a cached older UI on
+the first page load. Incorrect-password feedback for account deletion appears
+beside the password field and clears when the user retries.
+
+\sectiontitle{3. Accounts, privacy, and feedback}
+
+There is no separate username: registration and sign-in use email. For the
+OAuth2 password-form endpoint, the email is submitted in the field named
+\texttt{username}. The backend trims and lowercases email addresses during
+registration and sign-in, so email capitalization does not change account
+identity. Passwords remain case-sensitive and are stored as bcrypt hashes.
+Login tokens are JWTs signed using the required \texttt{SECRET\_KEY}.
+
+Signed-in users can edit an optional display name and phone number, upload a
+PNG/JPEG/WebP avatar up to 140 KiB, choose a per-browser light/dark/system
+theme, and delete an account after password verification and confirmation.
+Dataset ownership and roles are determined by the server.
+
+Feedback is stored independently of accounts. Administrators can review it
+through the authenticated \texttt{GET /api/v1/admin/feedback} endpoint; the
+web interface does not currently include an inbox. A regular user cannot use
+the administrator-only endpoint.
+
+\sectiontitle{4. Data storage and current database schema}
+
+The default database is SQLite at \texttt{data/app.db}; deployments can select
+another database such as PostgreSQL through \texttt{DATABASE\_URL}. The server
+stores parsed dataset rows, not a byte-for-byte copy of the uploaded CSV file.
+Each dataset keeps original cell text, normalized analysis values, profiling
+metadata, and the user's final semantic review. The browser keeps an active
+working copy and token in \texttt{sessionStorage}; the database remains the
+durable source of truth.
+
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Table} & \textbf{Stored information}\\
+\midrule
+\texttt{user} & Email, password hash, role, optional profile fields, avatar, and creation time.\\
+\texttt{dataset} & Owner, filename, row and column information, original and normalized values, profiles, and semantic review.\\
+\texttt{visual} & Dataset, chart type, field mapping, aggregation, optional \texttt{date\_filter} JSON, display order, and creation time. It does not store a chart image.\\
+\texttt{forecastrun} & Owner and dataset, forecast settings, selected model/features, and saved result.\\
+\texttt{feedback} & Submitter name, email, message, and creation time; readable only by administrators.\\
+\bottomrule
+\end{tabularx}
+
+A visual is reconstructed from its dataset and saved chart settings. Deleting a
+dataset cascades to its visuals and forecast runs. The optional date filter
+records a date-column name and a unique list of selected \texttt{YYYY-MM-DD}
+values; older visuals without a filter continue to display all dates.
+
+\sectiontitle{5. Forecasting and interpretation}
+
+Available methods are last-value Naive, the mean of up to the last seven
+observations, damped Holt trend, optional Seasonal Naive when a season length is
+specified, and optional Ridge regression when the user reviews and confirms
+eligible historical numeric features. Ridge uses lagged target values and
+selected historical feature values; it does not use actual values from inside
+the forecast horizon. Imputation and scaling are fitted on training samples.
+
+The forecast horizon is 1--90 periods. Two expanding chronological validation
+windows select the method by pooled MAE. The final held-out test window is kept
+separate from model selection; MAE and RMSE are reported, then the selected
+method is refitted on usable history to produce future point estimates. Each
+assisted run is saved for later review. The system does not currently provide
+prediction intervals, guarantee future results, infer seasonality, or support
+simultaneous multi-series forecasting.
+
+\sectiontitle{6. Migrations, setup, and verification}
+
+The current schema includes incremental Alembic revisions
+\texttt{20261109\_05} (feedback storage) and \texttt{20261110\_06}
+(optional saved-visual date filter). Revision \texttt{20261110\_06} depends on
+\texttt{20261109\_05}; therefore, the complete
+\texttt{migrations/versions/} directory must accompany the source code. For a
+new or existing database, run \texttt{python -m alembic upgrade head} from the
+project root before starting the application. Existing databases should be
+backed up before schema migration. The application requires \texttt{SECRET\_KEY}
+at startup.
+
+On 10 November 2026, the backend suite completed with \textbf{135 passed}.
+JavaScript syntax checks, \texttt{git diff --check}, browser checks for field
+search and date filtering, and an isolated SQLite migration/startup check also
+passed. The isolated checks used temporary databases; they did not replace
+project data.
+
+\sectiontitle{7. Limitations and follow-up}
+
+CSV normalization uses heuristics, so ambiguous dates and locale-dependent
+numbers require review. Missing periods are not automatically imputed for
+forecasting. Forecasts are point estimates from historical patterns, not
+business guarantees. Feedback review is API-only, and chart rendering depends
+on the Chart.js CDN unless the library is bundled locally. Physical-device
+accessibility, production deployment, and real-user forecast quality still
+require separate evaluation.
+
+\end{document}

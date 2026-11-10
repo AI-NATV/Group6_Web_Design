@@ -5,7 +5,8 @@ SQLModel combines SQLAlchemy (tables, sessions, queries) with Pydantic
 request/response schemas, so the API never exposes more than it intends to.
 """
 
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -38,18 +39,25 @@ class Aggregation(str, Enum):
     max = "max"
 
 
+EMAIL_PATTERN = r"[a-z0-9._%+\-]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}"
+PHONE_PATTERN = r"^\+?[0-9][0-9 .\-]{6,18}[0-9]$"
+AVATAR_MAX_CHARS = 200_000  # about 150 KB of image data after base64 encoding
+AVATAR_TYPES = ("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,")
+
+
 # ---------- Tables ----------
 
 class UserBase(SQLModel):
-    username: str = Field(index=True, unique=True, min_length=3, max_length=30)
+    # The email address is the sign-in name. It is stored in lower case, so
+    # "Alice@Example.com" and "alice@example.com" are the same account.
+    email: str = Field(index=True, unique=True, max_length=254)
 
-    @field_validator("username")
+    @field_validator("email")
     @classmethod
-    def normalize_username(cls, value: str) -> str:
-        # Case-insensitive usernames: "Alice" and "alice" are the same account.
+    def normalize_email(cls, value: str) -> str:
         value = value.strip().lower()
-        if not all(character.isascii() and (character.isalnum() or character in "._-") for character in value):
-            raise ValueError("use only letters, digits, '.', '_' or '-'")
+        if len(value) > 254 or not re.fullmatch(EMAIL_PATTERN, value):
+            raise ValueError("enter a valid email address, for example name@example.com")
         return value
 
 
@@ -60,6 +68,10 @@ class User(UserBase, table=True):
     hashed_password: str
     role: Role = Role.user
     created_at: datetime = Field(default_factory=utc_now)
+    # Optional profile fields; they never affect login or ownership.
+    display_name: str | None = Field(default=None, max_length=60)
+    phone: str | None = Field(default=None, max_length=20)
+    avatar: str | None = Field(default=None, max_length=AVATAR_MAX_CHARS)
 
     datasets: list["Dataset"] = Relationship(back_populates="owner", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
@@ -96,6 +108,7 @@ class Visual(SQLModel, table=True):
     chart_type: ChartType
     fields: dict[str, str] = Field(sa_column=Column(JSON, nullable=False))
     aggregation: Aggregation = Aggregation.sum
+    date_filter: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     position: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -105,6 +118,32 @@ class Visual(SQLModel, table=True):
 def as_utc(value: datetime) -> datetime:
     # SQLite stores datetimes without a time zone; every stored value is UTC.
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
+class ForecastRun(SQLModel, table=True):
+    """One saved forecast result, so the owner can review earlier runs later."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    dataset_id: int = Field(foreign_key="dataset.id", index=True, ondelete="CASCADE")
+    time_column: str = Field(max_length=200)
+    target_column: str = Field(max_length=200)
+    horizon: int = Field(ge=1, le=90)
+    selected_model: str = Field(max_length=40)
+    features: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    # The response without the long history series (the dataset itself keeps the data).
+    result: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class Feedback(SQLModel, table=True):
+    """Public feedback submitted from the sign-in landing page."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    full_name: str = Field(max_length=100)
+    email: str = Field(max_length=254)
+    message: str = Field(max_length=2000)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 # ---------- Account schemas ----------
@@ -129,13 +168,99 @@ class UserPublic(UserBase):
     id: int
     role: Role
     created_at: datetime
+    display_name: str | None = None
+    phone: str | None = None
+    avatar: str | None = None
 
     _utc = field_validator("created_at")(as_utc)
+
+
+class UserUpdate(SQLModel):
+    """PATCH /me body. The email cannot change here; every field is optional."""
+
+    display_name: str | None = Field(default=None, max_length=60)
+    phone: str | None = Field(default=None, max_length=20)
+
+    @field_validator("display_name")
+    @classmethod
+    def clean_display_name(cls, value: str | None) -> str | None:
+        value = (value or "").strip()
+        return value or None
+
+    @field_validator("phone")
+    @classmethod
+    def check_phone(cls, value: str | None) -> str | None:
+        value = (value or "").strip()
+        if not value:
+            return None
+        if not re.fullmatch(PHONE_PATTERN, value):
+            raise ValueError("enter a phone number with 8 to 20 digits, spaces, '.', '-' or a leading '+'")
+        return value
+
+
+class AvatarUpdate(SQLModel):
+    avatar: str = Field(max_length=AVATAR_MAX_CHARS)
+
+    @field_validator("avatar")
+    @classmethod
+    def check_avatar(cls, value: str) -> str:
+        if not value.startswith(AVATAR_TYPES):
+            raise ValueError("avatar must be a PNG, JPEG or WebP image")
+        return value
+
+
+class AccountDelete(SQLModel):
+    """DELETE /me body: the current password is required to confirm the deletion."""
+
+    password: str = Field(min_length=1, max_length=72)
 
 
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class FeedbackCreate(SQLModel):
+    full_name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    message: str = Field(min_length=8, max_length=2000)
+
+    @field_validator("full_name")
+    @classmethod
+    def clean_feedback_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("name cannot be blank")
+        return value
+
+    @field_validator("email")
+    @classmethod
+    def normalize_feedback_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if len(value) > 254 or not re.fullmatch(EMAIL_PATTERN, value):
+            raise ValueError("enter a valid email address")
+        return value
+
+    @field_validator("message")
+    @classmethod
+    def clean_feedback_message(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 8:
+            raise ValueError("message must contain at least 8 characters")
+        return value
+
+
+class FeedbackReceipt(SQLModel):
+    id: int
+    created_at: datetime
+
+    _utc = field_validator("created_at")(as_utc)
+
+
+class FeedbackPublic(FeedbackReceipt):
+    full_name: str
+    email: str
+    message: str
 
 
 # ---------- Dataset schemas ----------
@@ -176,6 +301,25 @@ class DatasetUpdate(SQLModel):
         return value
 
 
+# ---------- Forecast run schemas ----------
+
+class ForecastRunSummary(SQLModel):
+    id: int
+    dataset_id: int
+    time_column: str
+    target_column: str
+    horizon: int
+    selected_model: str
+    features: list[str]
+    created_at: datetime
+
+    _utc = field_validator("created_at")(as_utc)
+
+
+class ForecastRunPublic(ForecastRunSummary):
+    result: dict[str, Any]
+
+
 # ---------- Visual schemas ----------
 
 REQUIRED_FIELDS = {
@@ -190,6 +334,7 @@ class VisualCreate(SQLModel):
     chart_type: ChartType
     fields: dict[str, str] = Field(schema_extra={"examples": [{"dimension": "region", "measure": "revenue"}]})
     aggregation: Aggregation = Aggregation.sum
+    date_filter: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def fields_match_chart_type(self):
@@ -198,6 +343,19 @@ class VisualCreate(SQLModel):
             raise ValueError(f"{self.chart_type.value} charts need exactly these fields: {', '.join(sorted(expected))}")
         if any(not column.strip() for column in self.fields.values()):
             raise ValueError("field names cannot be blank")
+        if self.date_filter is not None:
+            if set(self.date_filter) != {"column", "dates"}:
+                raise ValueError("date_filter must contain exactly a column and dates")
+            column = self.date_filter["column"]
+            dates = self.date_filter["dates"]
+            if not isinstance(column, str) or not column.strip():
+                raise ValueError("date_filter column cannot be blank")
+            if not isinstance(dates, list) or any(not isinstance(value, str) for value in dates):
+                raise ValueError("date_filter dates must be a list of strings")
+            if len(dates) != len(set(dates)):
+                raise ValueError("date_filter dates must be unique")
+            if any(date.fromisoformat(value).isoformat() != value for value in dates):
+                raise ValueError("date_filter dates must use YYYY-MM-DD format")
         return self
 
 

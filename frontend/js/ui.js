@@ -43,7 +43,8 @@ const UI = (() => {
     const account = Auth.user();
     if (!indicator || !account) return;
     const role = account.role === "admin" ? ` · ${I18n.t("auth.admin")}` : "";
-    indicator.textContent = `${I18n.t("auth.signedInAs", { name: account.username })}${role}`;
+    // Greet with the optional display name; without one, the email address is used.
+    indicator.textContent = `${I18n.t("auth.signedInAs", { name: account.display_name || account.email })}${role}`;
     indicator.title = indicator.textContent; // full text when the header shortens it
     indicator.hidden = false;
   }
@@ -81,5 +82,5 @@ const UI = (() => {
     element.innerHTML = `<section class="empty-state"><h2>${escapeHtml(I18n.t("empty.title"))}</h2><p>${escapeHtml(I18n.t("empty.body", { feature }))}</p><a class="button-link" href="index.html">${escapeHtml(I18n.t("empty.goData"))}</a></section>`;
   }
 
-  return { escapeHtml, setMessage, formatNumber, renderDatasetIndicator, checkApiStatus, initialiseShell, showDatasetRequired };
+  return { escapeHtml, setMessage, formatNumber, renderDatasetIndicator, renderUser, checkApiStatus, initialiseShell, showDatasetRequired };
 })();

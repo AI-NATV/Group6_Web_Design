@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import Session
 
@@ -53,11 +55,29 @@ def create_visual(dataset_id: int, visual_in: VisualCreate, session: SessionDep,
     missing = [column for column in visual_in.fields.values() if column not in dataset.columns]
     if missing:
         raise HTTPException(status_code=400, detail=f"Column {missing[0]!r} does not exist in this dataset")
+    if visual_in.date_filter is not None:
+        column = visual_in.date_filter["column"]
+        if column not in dataset.columns:
+            raise HTTPException(status_code=400, detail=f"Date column {column!r} does not exist in this dataset")
+        valid_dates = {
+            row.get(column) for row in dataset.data
+            if isinstance(row.get(column), str) and _is_iso_date(row[column])
+        }
+        unknown_dates = set(visual_in.date_filter["dates"]) - valid_dates
+        if unknown_dates:
+            raise HTTPException(status_code=400, detail="Date filter contains a value not present in this dataset")
     visual = Visual.model_validate(visual_in, update={"dataset_id": dataset.id, "position": len(dataset.visuals)})
     session.add(visual)
     session.commit()
     session.refresh(visual)
     return visual
+
+
+def _is_iso_date(value: str) -> bool:
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
 
 
 @router.patch(

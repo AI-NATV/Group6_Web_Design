@@ -18,9 +18,14 @@ def test_frontend_workspaces_are_served_same_origin(client):
     assert "Data workspace" in data_page.text
     assert "Visualize workspace" in visualize_page.text
     assert "Define your forecasting task" in forecast_page.text
-    assert "Sign in to your workspace" in client.get("/app/login.html").text
+    login_page = client.get("/app/login.html")
+    assert "Sign in to your workspace" in login_page.text
+    assert login_page.headers["Cache-Control"] == "no-cache, must-revalidate"
+    assert 'id="project"' in login_page.text and 'id="features"' in login_page.text
+    assert 'id="feedbackForm"' in login_page.text
     assert client.get("/app/css/style.css").status_code == 200
     assert client.get("/app/js/visualize.js").status_code == 200
+    assert client.get("/app/js/feedback.js").status_code == 200
 
 
 def test_upload_returns_json_safe_dataset(alice):

@@ -2,15 +2,23 @@
 
 A semantic-aware Mini BI application for CSV data: upload and review fields, build a saved dashboard, then evaluate baseline or historical-feature forecasts on your own data.
 
+## Purpose and intended users
+
+This is a small, explainable BI workspace for students, small sellers/teams, and analysts who have product or sales data in CSV files. It supports four connected tasks: review and prepare a dataset, build and save charts, forecast one selected time series, and inspect how forecast methods performed on held-out historical data. It is not a real-time market feed, an automatic business-decision system, or a claim that forecasts are guaranteed.
+
 ## What works now
 
 - Three task-focused workspaces: **Data**, **Visualize**, and **Forecast**.
+- Bilingual project landing page on sign-in, with a project overview, forecasting-method summary, and feedback form. Feedback is stored for administrator review.
 - CSV validation (CSV only, no empty/header-only data, unique nonblank columns, 10 MB limit).
 - Paginated preview, type/role recommendations, confidence, and user overrides.
 - Datasets, semantic reviews, cleaned rows and dashboards saved in a database (SQLite by default, PostgreSQL via `DATABASE_URL`) and available again in a new browser.
-- Accounts: register, sign in (OAuth2 password flow, JWT Bearer tokens), sign out. Each user sees only their own datasets; admins can access all.
+- Accounts: register with an email address and a password, sign in with that email (OAuth2 password flow, JWT Bearer tokens), sign out. Sign-in ignores letter case. Each user sees only their own datasets; admins can access all.
+- Saved forecast runs: every assisted forecast is stored for its dataset, listed on the Forecast page, and can be reopened or deleted.
+- Account dialog (header **Account** button): optional display name (the greeting uses it, otherwise the email address), optional phone number, profile picture (PNG, JPEG or WebP, up to 140 KB), About section, log out, and account deletion that needs the current password and a second confirmation. The email address cannot be changed in this version.
+- Light, dark, or automatic theme (header **Theme** button). The choice is stored in this browser only.
 - Data-quality counts and explicit removal of exact duplicates or rows with missing values.
-- Semantic-aware drag-and-drop/click-to-assign field wells for Bar, Line, Pie, and Scatter charts.
+- Semantic-aware drag-and-drop/click-to-assign field wells and touch-friendly field dropdowns for Bar, Line, Pie, and Scatter charts. Switching among Bar, Line, and Pie keeps the assigned fields. When dates are available, filter every chart by selected days with a searchable checklist; the saved visual retains that filter. Pie charts correctly use one numeric measure split into category slices; use Bar or Line to compare multiple measures.
 - SUM, AVERAGE, COUNT, MIN, and MAX aggregation; compatibility feedback; and a saved dashboard per dataset with reorder/remove controls and KPI cards.
 - REST API under `/api/v1` (SQLModel tables, `response_model` schemas, 201/204/400/404/413/422 responses), OpenAPI docs, request IDs/timing logs, and API tests on a separate test database.
 - Forecast configuration, chronological backtesting, MAE/RMSE comparison and future point predictions from the uploaded target series.
@@ -32,8 +40,9 @@ backend/
   config.py                   Environment configuration (origins, upload limit, DATABASE_URL, SECRET_KEY)
   security.py                 bcrypt hashing, JWT, get_current_user (CurrentUser), ownership checks
   database.py                 Engine, create_db_and_tables, get_session (SessionDep)
-  db_models.py                SQLModel tables (User, Dataset, Visual) and their API schemas
+  db_models.py                SQLModel tables (User, Dataset, Visual, ForecastRun, Feedback) and their API schemas
   routers/auth.py             /api/v1/register, /api/v1/token, /api/v1/me
+  routers/feedback.py         Public feedback submission and administrator-only review
   models.py                   Forecast request/response contracts
   routers/datasets.py         /api/v1/datasets: upload, list, read, update, delete
   routers/visuals.py          /api/v1/datasets/{id}/visuals and /api/v1/visuals/{id}
@@ -48,27 +57,68 @@ alembic.ini                   Alembic configuration
 migrations/                   Versioned database schema migrations
 ```
 
+### Suggested file-by-file code walkthrough
+
+1. **Register and sign in:** `frontend/js/login.js` and `frontend/js/auth.js` call `backend/routers/auth.py`; `backend/security.py` hashes/checks passwords and creates tokens; `backend/db_models.py` defines the account schema.
+2. **Upload and review data:** `frontend/js/data.js` calls `backend/routers/datasets.py`, which uses `backend/services/csv_service.py` to validate and normalize the CSV before saving a `Dataset`.
+3. **Build charts:** `frontend/js/visualize.js` maps fields and draws Chart.js visuals. The saved field mapping is sent to `backend/routers/visuals.py` and stored as a `Visual`; the chart is recreated from the dataset plus those settings.
+4. **Forecast:** `frontend/js/forecast.js` calls `backend/routers/forecast.py`; `backend/services/forecast_service.py` evaluates the baseline models and `backend/services/feature_service.py` supplies the optional Ridge model.
+5. **Persistence and access:** `backend/database.py` creates sessions/engines from `backend/config.py`; dataset ownership and admin checks use the authenticated user from `backend/security.py`.
+
 ### Data model
 
 ```text
-user                      dataset                               visual
-  id (PK)                   id (PK)                               id (PK)
-  username (unique)         owner_id (FK -> user.id)              dataset_id (FK -> dataset.id)
-  hashed_password           filename, rows, columns (JSON)        chart_type, fields (JSON), aggregation
-  role (user | admin)       data, raw_data, profiles (JSON)       position
-  created_at                semantic_model (JSON)                 created_at
-                            created_at, updated_at
+user                         dataset                                  visual
+  id (PK)                      id (PK)                                  id (PK)
+  email (unique)               owner_id (FK -> user.id)                 dataset_id (FK -> dataset.id)
+  hashed_password, role        filename, rows, columns (JSON)           chart_type, fields (JSON), aggregation
+  display_name, phone, avatar  data, raw_data, profiles (JSON)           date_filter (optional JSON), position, created_at
+  created_at                   semantic_model (JSON)
+                               created_at, updated_at
+
+forecastrun                  feedback
+  id (PK)                      id (PK)
+  owner_id (FK -> user.id)     full_name, email, message
+  dataset_id (FK -> dataset.id) created_at
+  time_column, target_column,
+  horizon, selected_model, features,
+  result (JSON), created_at
 ```
 
-One user owns many datasets; one dataset has many visuals (deletes cascade). The database is the source of truth; the browser keeps a copy of the active dataset in `sessionStorage` so the three pages can read it after navigation, and every change is saved through the API first. The Forecast page sends task settings to the saved dataset's authenticated forecast endpoint; forecasts are computed on demand and not stored. The legacy stateless `/forecast` baseline endpoint remains available.
+One user owns many datasets and forecast runs; one dataset has many visuals and forecast runs (deletes cascade). Feedback is stored independently of accounts and is readable only by admins. The database is the source of truth; the browser keeps a copy of the active dataset in `sessionStorage` so the three pages can read it after navigation, and every change is saved through the API first. Forecast results are saved as runs for later review. The legacy stateless `/forecast` baseline endpoint remains available.
+
+### Where uploaded data and visuals are stored
+
+The backend stores uploaded dataset rows in the configured database: SQLite at `data/app.db` by default, or another database selected through `DATABASE_URL`. The original upload is parsed on the server; the project does **not** keep a copy of the uploaded CSV file itself. Each `dataset` row stores its filename, owner ID, column list, raw/display values (`raw_data`), normalized analysis values (`data`), import profiles, and the user's final semantic review. The active dataset and access token are also held in browser `sessionStorage` for navigation during that tab; this is a working copy, not the durable store.
+
+Each `visual` row stores a dataset ID, chart type, field mapping in `fields` JSON (for example `{"dimension":"Date","measure":"Revenue"}` or `{"x":"Cost","y":"Revenue"}` for Scatter), aggregation (`sum`, `average`, `count`, `min`, or `max`), an optional selected-date filter, display order, and creation time. It does **not** store a chart screenshot or duplicate the dataset values. Chart.js recreates the chart from the saved dataset and visual settings. Deleting a dataset removes its saved visuals and forecast runs.
+
+### Import normalization and explicit data cleaning
+
+On upload, `backend/services/csv_service.py` reads CSV cells, recognizes common date and number/currency/percentage formats, and stores both display and analysis values. Missing markers and values that cannot be parsed are represented as missing; ambiguous dates are left for review rather than guessed. The Data page shows detected types, transformations, and counts of missing cells and exact duplicate rows. Users can explicitly remove exact duplicate rows or rows with missing values; these actions update the saved dataset. Import normalization is automatic, but row deletion is not. Forecasting likewise stops on invalid/missing targets or duplicate dates by default; skipping or combining duplicate-date values requires an explicit user choice.
+
+### Forecast model: what is actually predicted
+
+The Forecast page computes point forecasts from the selected numeric target history; it is not a static example chart. It compares:
+
+- **Naive:** repeats the last observed target value at every future step.
+- **Moving average:** repeats the average of up to the last 7 observations.
+- **Damped Holt trend:** smooths the level and trend, then gradually damps the trend. A small fixed grid of smoothing parameters is selected using training residuals only.
+- **Seasonal Naive:** repeats the last observed seasonal pattern, only when the user explicitly sets a season length.
+- **Ridge historical features (optional):** a direct multi-output Ridge regression using target lags (1, 2, 3 and 7), a trailing 7-observation mean, and user-confirmed numeric feature values from the last available history row.
+
+For horizon `h`, two successive `h`-period validation windows select the method with the lowest pooled MAE; then a separate final `h`-period test window reports performance against Naive. The test results do not choose the model. The selected method is refitted on all eligible history to produce the future estimates. A minimum-history guard is applied and missing periods are not invented. This is a genuine, evaluated forecast workflow, but simple methods can still perform poorly: MAE/RMSE are historical error measures, not probabilities or confidence scores. Forecast intervals, automatic season detection, and guarantees are not implemented.
 
 ### REST API
 
 | Method | URL | Success | Errors |
 |---|---|---|---|
-| POST | `/api/v1/register` (JSON `username`, `password`) | 201 | 409, 422 |
-| POST | `/api/v1/token` (form `username`, `password`) | 200 | 401, 422 |
+| POST | `/api/v1/register` (JSON `email`, `password`) | 201 | 409, 422 |
+| POST | `/api/v1/token` (form `username` = email, `password`) | 200 | 401, 422 |
 | GET | `/api/v1/me` | 200 | 401 |
+| DELETE | `/api/v1/me` (JSON `password`) | 204 | 401, 403, 422 |
+| POST | `/api/v1/feedback` (JSON `full_name`, `email`, `message`) | 201 | 422 |
+| GET | `/api/v1/admin/feedback?offset=&limit=` (admin token required) | 200 | 401, 403, 422 |
 | POST | `/api/v1/datasets` (multipart `file`) | 201 | 400, 413, 422 |
 | GET | `/api/v1/datasets?offset=&limit=` | 200 | 422 |
 | GET / PATCH / DELETE | `/api/v1/datasets/{dataset_id}` | 200 / 200 / 204 | 400, 404, 422 |
@@ -76,16 +126,33 @@ One user owns many datasets; one dataset has many visuals (deletes cascade). The
 | PATCH / DELETE | `/api/v1/visuals/{visual_id}` | 200 / 204 | 404, 422 |
 | POST | `/forecast` | 200 | 400, 422 |
 | POST | `/api/v1/datasets/{id}/feature-review` | 200 | 400, 401, 403, 404, 422 |
-| POST | `/api/v1/datasets/{id}/forecast` | 200 | 400, 401, 403, 404, 422 |
+| POST | `/api/v1/datasets/{id}/forecast` | 200 (saves a run) | 400, 401, 403, 404, 422 |
+| GET | `/api/v1/datasets/{id}/forecast-runs` | 200 | 401, 403, 404 |
+| GET / DELETE | `/api/v1/forecast-runs/{id}` | 200 / 204 | 401, 403, 404 |
 
 Every `/api/v1/datasets` and `/api/v1/visuals` route needs `Authorization: Bearer <token>` (401 without a valid token) and only works on the caller's own datasets (403 otherwise; admins may access all). `/health`, `/forecast` (stateless, stores nothing) and the static pages are public; the pages themselves redirect to `login.html` when nobody is signed in.
+
+### Reviewing user feedback
+
+Feedback submitted on the public landing page is saved in the database. There is not yet a feedback inbox in the web interface; an administrator reviews submissions through the API:
+
+1. From the project root, create or promote an administrator account. For a new account, the script prompts for a password without echoing it:
+
+   ```powershell
+   python -m backend.create_admin admin@example.com
+   ```
+
+2. Start the app and open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs). Use **Authorize** with the administrator's email and password, then call **GET `/api/v1/admin/feedback`** in the `feedback` section. The endpoint returns the newest feedback first and accepts `offset` (default `0`) and `limit` (default `50`, maximum `100`). A regular user receives `403 Forbidden`.
+
+The same endpoint can be called from an API client by first signing in through `POST /api/v1/token`, then sending the returned access token as a Bearer token in the `Authorization` header. Keep the token private.
 
 ### Authentication
 
 - Passwords are stored only as bcrypt hashes (salted, deliberately slow) via `pwdlib`; they must be 8+ characters and at most 72 bytes.
+- Registration and sign-in trim and lowercase the email address, so `Tuan@example.com` and `tuan@example.com` identify the same account. There is no separate username: `/api/v1/token` follows OAuth2 form conventions, so the email is submitted in the field named `username`. Passwords are case-sensitive; use the same capitalization as at registration.
 - `POST /api/v1/token` returns a JWT signed with `SECRET_KEY` (HS256) whose payload holds only `sub` (user id) and `exp`. It expires after `ACCESS_TOKEN_EXPIRE_MINUTES` (default 30); the user then signs in again.
 - `get_current_user` reloads the user from the database on every request, so deleted users are locked out and roles cannot be changed by editing a token.
-- The owner of an upload and every user's role are decided by the server, never by the request. Admins are created only with `python -m backend.create_admin USERNAME`.
+- The owner of an upload and every user's role are decided by the server, never by the request. Admins are created only with `python -m backend.create_admin EMAIL`. If the database came from before the email change, run `alembic upgrade head` first; the migration stops and lists any account whose username is not an email address, so those accounts must be fixed before it can finish.
 - The browser keeps the token in `sessionStorage` (cleared when the tab closes or on **Log out**); every page escapes the data it renders. Use HTTPS in production so tokens and passwords are not sent in plain text.
 
 ## Run locally
@@ -106,7 +173,7 @@ Every `/api/v1/datasets` and `/api/v1/visuals` route needs `Authorization: Beare
 
    On macOS/Linux use `export SECRET_KEY="..."`.
 
-4. Create the database schema from the initial migration:
+4. Apply all database migrations:
 
    ```powershell
    alembic upgrade head
@@ -121,13 +188,13 @@ Every `/api/v1/datasets` and `/api/v1/visuals` route needs `Authorization: Beare
    The SQLite database is stored at `data/app.db` (git-ignored). Optionally create an admin and load the included 48-row sample dataset for them:
 
    ```powershell
-   python -m backend.create_admin admin
-   python -m backend.seed --owner admin
+   python -m backend.create_admin admin@example.com
+   python -m backend.seed --owner admin@example.com
    ```
 
 6. Open [http://127.0.0.1:8000/app/](http://127.0.0.1:8000/app/) in a browser. This serves the frontend from the same FastAPI origin. Create an account (or sign in), upload a CSV or choose a dataset under **Saved datasets**, review the semantic recommendations, then open **Visualize**.
 
-**Existing local databases:** a database created before migrations does not contain Alembic's version table. Back it up first. In development, delete `data/app.db` and run `alembic upgrade head`. If an existing database has already been verified to match this exact initial schema, use `alembic stamp head` instead; do not run `upgrade` against already-created tables.
+**Existing databases:** back up the database before changing its schema. Run `alembic upgrade head` to apply any pending feedback and saved-visual date-filter migrations. The migrations check for existing objects before adding them. For a database without an Alembic version table, do not delete it or blindly run `alembic stamp head`: first verify which migrations its schema already contains and stamp only the matching revision, then run `alembic upgrade head`.
 
 API documentation is available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) and health status at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
 
@@ -162,7 +229,7 @@ Copy `.env.example` values into your deployment environment. `ALLOWED_ORIGINS` i
 7. Optionally click **Review features**, read the reasons, select at most 8 numeric features and confirm their historical availability. With no selected features, the existing baselines still run unchanged.
 8. Click **Evaluate & forecast**. Inspect the chronological splits, validation comparison, held-out actual/predicted chart, Naive baseline and future forecast table. Toggle report sections and use **Download report (JSON)** to keep the full result.
 
-Models: last-value Naive, mean of the last 7 observations, damped Holt trend, and optional Seasonal Naive. Holt fits a small deterministic grid of alpha/beta/phi using **training residuals only**. It is not a full ETS optimizer or Holt-Winters seasonal model.
+Models: last-value Naive, mean of the last 7 observations, damped Holt trend, optional Seasonal Naive, and optional Ridge historical features when the user confirms eligible features. Holt fits a small deterministic grid of alpha/beta/phi using **training residuals only**. It is not a full ETS optimizer or Holt-Winters seasonal model.
 
 For horizon `h`, the last `3h` observations form two consecutive validation windows and one untouched test window. Each validation forecast uses an expanding training prefix and predicts all `h` steps without observing intervening actuals. Lowest pooled validation MAE selects the model; ties favor Naive. The selected model is evaluated on the final `h` observations, then refitted on all history to forecast beyond the last observation. Test performance never changes the chosen model.
 
@@ -198,14 +265,28 @@ Install the updated `requirements.txt` (adds scikit-learn), then restart the bac
 - Median feature imputation and standardization are fitted independently on each prefix's supervised samples. The first prefix needs at least 12 such samples after lookback/horizon removal: `initial_train_count - horizon - 7 + 1 >= 12`. If too short, review disables extra features; baselines remain available. For duplicate dates, the explicit Sum/Mean rule applies to selected features as well; a partially missing feature group becomes missing, rather than a misleading partial sum.
 - Ridge competes on the same two chronological validation windows as the baselines. The selected model alone is evaluated against Naive on the untouched test window. A baseline may win, in which case the final forecast does **not** use the extra features. Do not repeatedly tune against the test score and still call it untouched.
 - Report insights include historical min/max, largest consecutive change, the 7-transition window with highest mean absolute change, and final predicted change versus the last actual. The high-change statistic is **not annualized financial volatility**, the forecast is not a guarantee, and the report makes no causal claims. Percentage change uses the absolute last actual value as denominator and is unavailable when zero.
-- UI additions support EN/VI. Report visibility is customizable for the current page; JSON download includes settings and results. Forecast runs/models are not persisted in the database or added to the saved Visualize dashboard yet.
+- UI additions support EN/VI. Report visibility is customizable for the current page; JSON download includes settings and results. Forecast runs are persisted for later review on the Forecast page; trained model objects are not stored or added to the saved Visualize dashboard.
 
 The historical-snapshot assumption still requires human review: a row's date may differ from when a report became available, and revised/backfilled values may not have existed at the time. Name heuristics cannot detect every leakage source. This version does not take future covariate scenarios, categorical predictors, or automatically infer product identity.
+
+### What the forecast means
+
+The Forecast page compares simple, transparent methods on the series you choose:
+
+- **Naive:** repeats the last observed value.
+- **Mean of the last 7 observations.**
+- **Damped Holt trend:** a smoothed level and trend, with the trend damped over the horizon.
+- **Seasonal Naive:** repeats the value one season earlier, only when you set a season length.
+- **Ridge regression on historical features:** only if you confirm features. It uses past values of the target and the selected features, never values inside the period it predicts.
+
+The method with the lowest error on two validation windows is chosen. The held-out test is used only to report accuracy, so it cannot change the choice. Every run is saved for the dataset and can be reopened or deleted from the Forecast page.
+
+**The results are for reference only.** They describe patterns in the uploaded file and do not guarantee future sales. Do not use them for business decisions without a full analysis of the product, the market and other factors.
 
 ## Current limitations
 
 - Access tokens cannot be revoked before they expire (no refresh tokens or server-side logout); keep `ACCESS_TOKEN_EXPIRE_MINUTES` short. There is no password reset or rate limiting on login yet.
-- The initial Alembic revision covers the current three-table schema. Future schema changes still need a new reviewed migration before deployment.
+- Alembic migrations currently cover accounts, profile fields, email sign-in, saved forecast runs, feedback and saved-visual date filters through revision `20261110_06`. Future schema changes still need a new reviewed migration before deployment.
 - Forecasting supports one date/target series per run (optionally filtered to one product/group), point estimates only, and optional historical numeric features. ARIMA/SARIMA, future/categorical predictors, simultaneous multi-series training, market calendars, prediction intervals and saved models are not implemented.
 - Import still uses heuristics for comma-only numeric notation and ambiguous dates; review the data before forecasting. Missing periods and selection of the intended product/group require user review. Poor backtest results are shown rather than hidden.
 - Chart.js is loaded from a CDN, so the visual workspaces need network access to that CDN unless it is vendored for deployment.

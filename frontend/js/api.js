@@ -46,9 +46,9 @@ const Api = (() => {
 
   return {
     health: () => request("/health"),
-    // OAuth2 password flow: the login is a form (username, password), not JSON.
-    login: (username, password) => request(LOGIN_PATH, { method: "POST", body: new URLSearchParams({ username, password }) }),
-    register: (username, password) => request("/api/v1/register", json("POST", { username, password })),
+    // OAuth2 password flow: the login is a form. The field must be named "username", but it carries the email address.
+    login: (email, password) => request(LOGIN_PATH, { method: "POST", body: new URLSearchParams({ username: email, password }) }),
+    register: (email, password) => request("/api/v1/register", json("POST", { email, password })),
     me: () => request("/api/v1/me"),
     // Datasets and their dashboard visuals are stored in the server database.
     listDatasets: () => request("/api/v1/datasets?limit=100"),
@@ -67,5 +67,13 @@ const Api = (() => {
     forecast: (payload) => request("/forecast", json("POST", payload)),
     reviewFeatures: (datasetId, payload) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/feature-review`, json("POST", payload)),
     forecastDataset: (datasetId, payload) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/forecast`, json("POST", payload)),
+    listForecastRuns: (datasetId) => request(`/api/v1/datasets/${encodeURIComponent(datasetId)}/forecast-runs`),
+    getForecastRun: (runId) => request(`/api/v1/forecast-runs/${encodeURIComponent(runId)}`),
+    deleteForecastRun: (runId) => request(`/api/v1/forecast-runs/${encodeURIComponent(runId)}`, { method: "DELETE" }),
+    // Profile: optional display name and phone, profile picture, and account deletion (needs the password).
+    updateProfile: (changes) => request("/api/v1/me", json("PATCH", changes)),
+    setAvatar: (avatar) => request("/api/v1/me/avatar", json("PUT", { avatar })),
+    deleteAccount: (password) => request("/api/v1/me", json("DELETE", { password })),
+    submitFeedback: (payload) => request("/api/v1/feedback", json("POST", payload)),
   };
 })();

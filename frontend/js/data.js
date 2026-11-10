@@ -242,6 +242,10 @@ const DataWorkspace = (() => {
     document.getElementById("uploadForm").addEventListener("submit", uploadSelectedFile);
     document.getElementById("fileInput").addEventListener("change", (event) => {
       const file = event.target.files?.[0];
+      // Show the chosen file name before the user presses Upload.
+      document.getElementById("selectedFileName").textContent = file
+        ? I18n.t("data.selectedFile", { name: file.name })
+        : "";
       UI.setMessage("uploadMessage", file ? fileError(file) : "", "error");
     });
     document.getElementById("datasetSelect").addEventListener("change", async (event) => {

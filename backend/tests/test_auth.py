@@ -20,11 +20,11 @@ def bearer(token):
 
 
 def test_register_stores_only_a_salted_hash(client, session):
-    first = client.post(REGISTER, json={"username": "Alice", "password": "password123"})
-    second = client.post(REGISTER, json={"username": "bob", "password": "password123"})
+    first = client.post(REGISTER, json={"email": "Alice@Example.com", "password": "password123"})
+    second = client.post(REGISTER, json={"email": "bob@example.com", "password": "password123"})
 
     assert first.status_code == 201
-    assert first.json()["username"] == "alice", "usernames are case-insensitive"
+    assert first.json()["email"] == "alice@example.com", "emails are stored in lower case"
     assert first.json()["role"] == "user"
     assert "password" not in first.json() and "hashed_password" not in first.json()
     hashes = [user.hashed_password for user in session.exec(select(User)).all()]
@@ -34,28 +34,28 @@ def test_register_stores_only_a_salted_hash(client, session):
 
 
 def test_register_cannot_choose_the_admin_role(client):
-    response = client.post(REGISTER, json={"username": "mallory", "password": "password123", "role": "admin"})
+    response = client.post(REGISTER, json={"email": "mallory@example.com", "password": "password123", "role": "admin"})
 
     assert response.status_code == 201
     assert response.json()["role"] == "user"
 
 
-def test_duplicate_username_is_409(client):
-    client.post(REGISTER, json={"username": "alice", "password": "password123"})
+def test_duplicate_email_is_409(client):
+    client.post(REGISTER, json={"email": "alice@example.com", "password": "password123"})
 
-    response = client.post(REGISTER, json={"username": "ALICE", "password": "different-password"})
+    response = client.post(REGISTER, json={"email": "ALICE@example.com", "password": "different-password"})
 
     assert response.status_code == 409
-    assert response.json() == {"detail": "Username already taken"}
+    assert response.json() == {"detail": "Email already registered"}
 
 
 @pytest.mark.parametrize("body", [
-    {"username": "al", "password": "password123"},
-    {"username": "a" * 31, "password": "password123"},
-    {"username": "alice smith", "password": "password123"},
-    {"username": "alice", "password": "short"},
-    {"username": "alice", "password": "ể" * 25},  # 25 characters but 75 bytes: over bcrypt's 72-byte limit
-    {"username": "alice"},
+    {"email": "not-an-email", "password": "password123"},
+    {"email": "a" * 250 + "@example.com", "password": "password123"},
+    {"email": "alice smith@example.com", "password": "password123"},
+    {"email": "alice@example.com", "password": "short"},
+    {"email": "alice@example.com", "password": "ể" * 25},  # 25 characters but 75 bytes: over bcrypt's 72-byte limit
+    {"email": "alice@example.com"},
 ])
 def test_register_validation(client, body):
     assert client.post(REGISTER, json=body).status_code == 422
@@ -64,7 +64,7 @@ def test_register_validation(client, body):
 def test_login_returns_a_bearer_token_for_me(client, make_user):
     user = make_user("alice", "password123")
 
-    response = client.post(TOKEN, data={"username": "Alice", "password": "password123"})
+    response = client.post(TOKEN, data={"username": "Alice@Example.com", "password": "password123"})
 
     assert response.status_code == 200
     assert response.json()["token_type"] == "bearer"
@@ -74,21 +74,31 @@ def test_login_returns_a_bearer_token_for_me(client, make_user):
     assert payload["sub"] == str(user.id)
     me = client.get(ME, headers=bearer(token))
     assert me.status_code == 200
-    assert me.json()["username"] == "alice"
+    assert me.json()["email"] == "alice@example.com"
+
+
+def test_registered_email_sign_in_ignores_email_letter_case(client):
+    registration = client.post(REGISTER, json={"email": "Tuan.Nguyen@Example.com", "password": "password123"})
+    assert registration.status_code == 201
+    assert registration.json()["email"] == "tuan.nguyen@example.com"
+
+    for email in ("Tuan.Nguyen@Example.com", "tuan.nguyen@example.com", "TUAN.NGUYEN@EXAMPLE.COM"):
+        response = client.post(TOKEN, data={"username": email, "password": "password123"})
+        assert response.status_code == 200, email
 
 
 def test_wrong_password_and_unknown_user_get_the_same_401(client, make_user):
     make_user("alice", "password123")
 
-    wrong_password = client.post(TOKEN, data={"username": "alice", "password": "Password123"})
-    unknown_user = client.post(TOKEN, data={"username": "nobody", "password": "password123"})
+    wrong_password = client.post(TOKEN, data={"username": "alice@example.com", "password": "Password123"})
+    unknown_user = client.post(TOKEN, data={"username": "nobody@example.com", "password": "password123"})
 
     assert wrong_password.status_code == unknown_user.status_code == 401
-    assert wrong_password.json() == unknown_user.json() == {"detail": "Incorrect username or password"}
+    assert wrong_password.json() == unknown_user.json() == {"detail": "Incorrect email or password"}
 
 
 def test_login_needs_form_fields(client):
-    assert client.post(TOKEN, json={"username": "alice", "password": "password123"}).status_code == 422
+    assert client.post(TOKEN, json={"username": "alice@example.com", "password": "password123"}).status_code == 422
 
 
 def test_me_without_a_token(client):
@@ -117,7 +127,7 @@ def test_expired_tampered_and_foreign_tokens_are_401(client, make_user):
 
 def test_deleted_user_is_locked_out(client, session, make_user):
     user = make_user()
-    token = client.post(TOKEN, data={"username": "alice", "password": "password123"}).json()["access_token"]
+    token = client.post(TOKEN, data={"username": "alice@example.com", "password": "password123"}).json()["access_token"]
 
     session.delete(user)
     session.commit()

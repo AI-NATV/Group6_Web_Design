@@ -5,8 +5,25 @@ const VisualizeWorkspace = (() => {
   let lastGeneratedVisual = null;
   let chartType = "bar";
   let fields = freshFields(chartType);
+  let categoricalFields = freshFields("bar");
+  let scatterFields = freshFields("scatter");
   let aggregation = "sum";
+  let dateFilterColumn = null;
+  let selectedDates = null;
   const t = (key, variables) => I18n.t(key, variables);
+
+  function switchChartType(nextType) {
+    if (nextType === chartType) return;
+    if (chartType === "scatter") scatterFields = { ...fields };
+    else categoricalFields = { ...fields };
+
+    chartType = nextType;
+    if (chartType === "scatter") {
+      fields = { ...scatterFields, y: scatterFields.y || categoricalFields.measure };
+    } else {
+      fields = { ...categoricalFields, measure: scatterFields.y || categoricalFields.measure };
+    }
+  }
 
   function freshFields(type) {
     return type === "scatter" ? { x: null, y: null } : { dimension: null, measure: null };
@@ -20,11 +37,51 @@ const VisualizeWorkspace = (() => {
     return workspaceState().semanticModel[column];
   }
 
+  function dateColumns() {
+    const { dataset, semanticModel } = workspaceState();
+    return dataset.columns.filter((column) => semanticModel[column]?.type === "date"
+      && dataset.data.some((row) => isIsoDate(row[column])));
+  }
+
+  function isIsoDate(value) {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }
+
+  function datesForColumn(column) {
+    const { dataset } = workspaceState();
+    return [...new Set(dataset.data.map((row) => row[column]).filter(isIsoDate))].sort();
+  }
+
+  function currentDateFilter() {
+    if (!dateFilterColumn || selectedDates === null) return null;
+    return { column: dateFilterColumn, dates: [...selectedDates].sort() };
+  }
+
+  function updateDateSelectionUI() {
+    const allDates = datesForColumn(dateFilterColumn);
+    if (selectedDates !== null) {
+      selectedDates = new Set([...selectedDates].filter((date) => allDates.includes(date)));
+    }
+    const selectedCount = selectedDates === null ? allDates.length : selectedDates.size;
+    document.getElementById("dateFilterSummary").textContent = t("visual.dateSelection", { selected: selectedCount, total: allDates.length });
+    document.querySelectorAll("[data-date-option]").forEach((option) => {
+      option.checked = selectedDates === null || selectedDates.has(option.value);
+    });
+  }
+
   function describeVisual(visual) {
     const fieldsText = visual.chartType === "scatter"
       ? `${visual.fields.y} vs ${visual.fields.x}`
       : `${visual.aggregation.toUpperCase()} ${visual.fields.measure} by ${visual.fields.dimension}`;
-    return { title: t("visual.visual", { type: t(`visual.${visual.chartType}`) }), fields: fieldsText };
+    const filterText = visual.dateFilter
+      ? t("visual.filteredDates", { count: visual.dateFilter.dates.length })
+      : "";
+    return {
+      title: t("visual.visual", { type: t(`visual.${visual.chartType}`) }),
+      fields: filterText ? `${fieldsText} · ${filterText}` : fieldsText,
+    };
   }
 
   function displayRole(metadata) {
@@ -50,10 +107,23 @@ const VisualizeWorkspace = (() => {
   }
 
   function well(slot, title, help) {
-    return `<div class="field-well" data-well="${slot}" tabindex="0" role="button" aria-label="${UI.escapeHtml(title)} field well. ${UI.escapeHtml(help)}">
-      <span class="well-label">${UI.escapeHtml(title)}</span>
-      <span class="well-help">${UI.escapeHtml(help)}</span>
-      <div class="well-value">${fieldChip(slot, fields[slot]) || t("visual.dropField")}</div>
+    const options = workspaceState().dataset.columns
+      .filter((column) => allowedInWell(column, slot))
+      .map((column) => `<option value="${UI.escapeHtml(column)}" ${fields[slot] === column ? "selected" : ""}>${UI.escapeHtml(column)}</option>`)
+      .join("");
+    return `<div class="field-well-control">
+      <div class="field-well" data-well="${slot}" tabindex="0" role="button" aria-label="${UI.escapeHtml(title)} field well. ${UI.escapeHtml(help)}">
+        <span class="well-label">${UI.escapeHtml(title)}</span>
+        <span class="well-help">${UI.escapeHtml(help)}</span>
+        <div class="well-value">${fieldChip(slot, fields[slot]) || t("visual.dropField")}</div>
+      </div>
+      <label class="well-picker">
+        <span class="sr-only">${UI.escapeHtml(title)}</span>
+        <select data-well-select="${slot}" aria-label="${UI.escapeHtml(t("visual.chooseFieldFor", { field: title }))}">
+          <option value="" ${fields[slot] ? "" : "selected"}>${UI.escapeHtml(t("visual.chooseField"))}</option>
+          ${options}
+        </select>
+      </label>
     </div>`;
   }
 
@@ -68,6 +138,29 @@ const VisualizeWorkspace = (() => {
       ? `${well("x", t("visual.xValue"), t("visual.numericField"))}${well("y", t("visual.yValue"), t("visual.numericField"))}`
       : `${well("dimension", chartType === "pie" ? t("visual.category") : t("visual.xCategory"), t("visual.categoryField"))}${well("measure", chartType === "pie" ? t("visual.value") : t("visual.yValue"), t("visual.numericField"))}`;
     document.getElementById("fieldWells").innerHTML = `${wells}${aggregationControl}`;
+    document.getElementById("pieHint").hidden = chartType !== "pie";
+  }
+
+  function renderDateFilter() {
+    const section = document.getElementById("dateFilter");
+    const columns = dateColumns();
+    section.hidden = columns.length === 0;
+    if (!columns.length) return;
+
+    if (!columns.includes(dateFilterColumn)) {
+      dateFilterColumn = columns[0];
+      selectedDates = null;
+    }
+
+    const dateColumn = document.getElementById("dateFilterColumn");
+    dateColumn.innerHTML = columns.map((column) => `<option value="${UI.escapeHtml(column)}" ${column === dateFilterColumn ? "selected" : ""}>${UI.escapeHtml(column)}</option>`).join("");
+    const allDates = datesForColumn(dateFilterColumn);
+    const query = document.getElementById("dateSearch").value.trim().toLowerCase();
+    const visibleDates = allDates.filter((date) => date.toLowerCase().includes(query));
+    document.getElementById("dateOptions").innerHTML = visibleDates.length
+      ? visibleDates.map((date) => `<label class="date-option"><input type="checkbox" data-date-option value="${UI.escapeHtml(date)}" ${selectedDates === null || selectedDates.has(date) ? "checked" : ""}><span>${UI.escapeHtml(date)}</span></label>`).join("")
+      : `<p class="muted small">${t("visual.noDateMatches")}</p>`;
+    updateDateSelectionUI();
   }
 
   function renderDataPane() {
@@ -181,8 +274,14 @@ const VisualizeWorkspace = (() => {
   }
 
   function chartConfiguration(visual, dataset) {
+    const filteredDataset = visual.dateFilter
+      ? {
+        ...dataset,
+        data: dataset.data.filter((row) => visual.dateFilter.dates.includes(row[visual.dateFilter.column])),
+      }
+      : dataset;
     if (visual.chartType === "scatter") {
-      const points = dataset.data.map((row) => ({
+      const points = filteredDataset.data.map((row) => ({
         x: Semantic.toNumber(row[visual.fields.x]),
         y: Semantic.toNumber(row[visual.fields.y]),
       })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
@@ -194,7 +293,7 @@ const VisualizeWorkspace = (() => {
       };
     }
 
-    const grouped = aggregateData(visual.fields.dimension, visual.fields.measure, visual.aggregation, dataset);
+    const grouped = aggregateData(visual.fields.dimension, visual.fields.measure, visual.aggregation, filteredDataset);
     if (!grouped.labels.length) throw new Error(t("visual.noData"));
     const colors = ["#4f46e5", "#0ea5e9", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#14b8a6"];
     return {
@@ -220,10 +319,10 @@ const VisualizeWorkspace = (() => {
       UI.setMessage("builderMessage", error, "error");
       return;
     }
-    const visual = { chartType, fields: { ...fields }, aggregation };
+    invalidateGeneratedVisual();
+    const visual = { chartType, fields: { ...fields }, aggregation, dateFilter: currentDateFilter() };
     try {
       const configuration = chartConfiguration(visual, workspaceState().dataset);
-      if (previewChart) previewChart.destroy();
       const canvas = document.getElementById("activeChart");
       const description = describeVisual(visual);
       previewChart = new Chart(canvas, configuration);
@@ -291,14 +390,40 @@ const VisualizeWorkspace = (() => {
     document.getElementById("chartTypes").addEventListener("click", (event) => {
       const button = event.target.closest("[data-chart-type]");
       if (!button) return;
-      chartType = button.dataset.chartType;
-      fields = freshFields(chartType);
+      switchChartType(button.dataset.chartType);
       invalidateGeneratedVisual();
       renderChartTypes();
       renderFieldWells();
       UI.setMessage("builderMessage", "");
+      // Keep the same data: if the fields are still complete, redraw the chart at once.
+      if (!validationError()) generateChart();
     });
     document.getElementById("fieldSearch").addEventListener("input", renderDataPane);
+    document.getElementById("dateSearch").addEventListener("input", renderDateFilter);
+    document.getElementById("dateFilter").addEventListener("click", (event) => {
+      const action = event.target.closest("[data-date-action]")?.dataset.dateAction;
+      if (!action) return;
+      selectedDates = action === "all" ? null : new Set();
+      updateDateSelectionUI();
+      if (!validationError()) generateChart();
+    });
+    document.getElementById("dateFilter").addEventListener("change", (event) => {
+      if (event.target.id === "dateFilterColumn") {
+        dateFilterColumn = event.target.value;
+        selectedDates = null;
+        renderDateFilter();
+        if (!validationError()) generateChart();
+        return;
+      }
+      if (!event.target.matches("[data-date-option]")) return;
+      const allDates = datesForColumn(dateFilterColumn);
+      const next = selectedDates === null ? new Set(allDates) : new Set(selectedDates);
+      if (event.target.checked) next.add(event.target.value);
+      else next.delete(event.target.value);
+      selectedDates = next.size === allDates.length ? null : next;
+      updateDateSelectionUI();
+      if (!validationError()) generateChart();
+    });
     const dataFields = document.getElementById("dataFields");
     dataFields.addEventListener("dragstart", (event) => {
       const field = event.target.closest("[data-field]");
@@ -344,6 +469,12 @@ const VisualizeWorkspace = (() => {
       assignField(selectedField, wellElement.dataset.well);
     });
     wells.addEventListener("change", (event) => {
+      const fieldSelect = event.target.closest("[data-well-select]");
+      if (fieldSelect) {
+        if (fieldSelect.value) assignField(fieldSelect.value, fieldSelect.dataset.wellSelect);
+        else removeField(fieldSelect.dataset.wellSelect);
+        return;
+      }
       if (event.target.id === "aggregation") {
         aggregation = event.target.value;
         invalidateGeneratedVisual();
@@ -375,10 +506,13 @@ const VisualizeWorkspace = (() => {
       return;
     }
     document.getElementById("visualizeApp").hidden = false;
+    document.getElementById("fieldSearch").value = "";
+    document.getElementById("dateSearch").value = "";
     bindEvents();
     renderChartTypes();
     renderFieldWells();
     renderDataPane();
+    renderDateFilter();
     renderDashboard();
   }
 

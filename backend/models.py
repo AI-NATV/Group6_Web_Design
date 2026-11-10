@@ -87,3 +87,5 @@ class AssistedForecastRequest(DatasetForecastTask):
 class AssistedForecastResponse(ForecastResponse):
     feature_plan: dict[str, Any]
     insights: dict[str, Any]
+    # Id of the saved run (see GET /api/v1/forecast-runs/{id}); None if it could not be saved.
+    run_id: int | None = None

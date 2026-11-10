@@ -15,7 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import ALLOWED_ORIGINS
 from backend.database import create_db_and_tables
 from backend.models import ForecastRequest, ForecastResponse, HealthResponse
-from backend.routers import auth, datasets, forecast as dataset_forecast, visuals
+from backend.routers import auth, datasets, feedback, forecast as dataset_forecast, visuals
+from backend.routers.forecast import runs_router as forecast_runs
 from backend.security import require_secret_key
 from backend.services.forecast_service import ForecastValidationError, run_forecast
 
@@ -35,13 +36,14 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="Revenue Analytics API",
     version="0.6.0",
-    description="Saved CSV datasets and dashboards, local feature review, and baseline/historical-feature forecasts with chronological validation and held-out testing.",
+    description="Saved CSV datasets and dashboards, local feature review, forecast runs with chronological validation, and public feedback.",
     lifespan=lifespan,
     openapi_tags=[
         {"name": "auth", "description": "Register, log in for a Bearer token, and read the current user."},
         {"name": "datasets", "description": "Upload CSV files and manage the saved datasets."},
         {"name": "visuals", "description": "Charts saved on a dataset's dashboard."},
-        {"name": "forecast", "description": "Owner-checked feature review/forecasts on saved datasets, plus the legacy stateless baseline endpoint. Forecast results are not stored."},
+        {"name": "forecast", "description": "Owner-checked feature review and saved forecasts on datasets, plus the legacy stateless baseline endpoint."},
+        {"name": "feedback", "description": "Public feedback submissions and administrator-only review."},
         {"name": "health", "description": "Service status."},
     ],
 )
@@ -63,6 +65,8 @@ async def request_logging(request: Request, call_next):
     response = await call_next(request)
     elapsed_ms = (time.perf_counter() - started_at) * 1000
     response.headers["X-Request-ID"] = request_id
+    if request.url.path.startswith("/app/") and response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
     logger.info("%s %s -> %s in %.1fms", request.method, request.url.path, response.status_code, elapsed_ms)
     return response
 
@@ -91,9 +95,11 @@ def forecast(payload: ForecastRequest) -> ForecastResponse:
 
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(feedback.router, prefix="/api/v1")
 app.include_router(datasets.router, prefix="/api/v1")
 app.include_router(visuals.router, prefix="/api/v1")
 app.include_router(dataset_forecast.router, prefix="/api/v1")
+app.include_router(forecast_runs, prefix="/api/v1")
 
 # Same-origin local development option: http://127.0.0.1:8000/app/
 app.mount("/app", StaticFiles(directory=str(FRONTEND_DIRECTORY), html=True), name="frontend")
