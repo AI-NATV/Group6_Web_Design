@@ -85,5 +85,10 @@ const Auth = (() => {
     window.location.replace("login.html?reason=loggedout");
   }
 
+  if (window.opener) {
+    clearSession();
+    window.opener = null;
+  }
+
   return { token, user, isLoggedIn, setToken, setUser, clearSession, safeNext, requireLogin, handleUnauthorized, logout };
 })();
