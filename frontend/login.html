@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="api-base" content="auto">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <title>Sign in Â· Revenue Analytics</title>
-  <link rel="stylesheet" href="css/style.css?v=mobile-ux-3">
+  <link rel="stylesheet" href="css/style.css?v=required-fields-1">
 </head>
 <body class="auth-page" data-page-title="page.login">
   <header class="app-header">
@@ -106,13 +107,10 @@
       </div>
       <form id="feedbackForm" class="feedback-form" action="/api/v1/feedback" method="post">
         <div class="feedback-form-row">
-          <label class="sr-only" for="feedbackName" data-i18n="feedback.name">Full name</label>
-          <input id="feedbackName" name="full_name" type="text" autocomplete="name" maxlength="100" placeholder="Full name" data-i18n-placeholder="feedback.name" required>
-          <label class="sr-only" for="feedbackEmail" data-i18n="auth.email">Email</label>
-          <input id="feedbackEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="Email" data-i18n-placeholder="auth.email" required>
+          <label class="feedback-field"><span data-i18n="feedback.name">Full name</span><input id="feedbackName" name="full_name" type="text" autocomplete="name" maxlength="100" placeholder="Full name" data-i18n-placeholder="feedback.name" required></label>
+          <label class="feedback-field"><span data-i18n="auth.email">Email</span><input id="feedbackEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="Email" data-i18n-placeholder="auth.email" required></label>
         </div>
-        <label class="sr-only" for="feedbackMessageText" data-i18n="feedback.message">Your message</label>
-        <textarea id="feedbackMessageText" name="message" rows="5" minlength="8" maxlength="2000" placeholder="Your message" data-i18n-placeholder="feedback.message" required></textarea>
+        <label class="feedback-field"><span data-i18n="feedback.message">Your message</span><textarea id="feedbackMessageText" name="message" rows="5" minlength="8" maxlength="2000" placeholder="Your message" data-i18n-placeholder="feedback.message" required></textarea></label>
         <div class="feedback-submit-row">
           <button id="feedbackSubmit" class="feedback-submit" type="submit" data-i18n="feedback.submit">Send feedback</button>
           <p id="feedbackStatus" class="feedback-status" aria-live="polite"></p>
@@ -130,10 +128,10 @@
   </footer>
 
   <script src="js/state.js?v=auth-pages-1" defer></script>
-  <script src="js/auth.js?v=auth-pages-1" defer></script>
+  <script src="js/auth.js?v=tab-session-1" defer></script>
   <script src="js/api.js?v=feedback-1" defer></script>
-  <script src="js/i18n.js?v=mobile-ux-3" defer></script>
-  <script src="js/ui.js?v=auth-pages-1" defer></script>
+  <script src="js/i18n.js?v=required-fields-1" defer></script>
+  <script src="js/ui.js?v=required-fields-1" defer></script>
   <script src="js/account.js?v=account-2" defer></script>
   <script src="js/feedback.js?v=feedback-1" defer></script>
   <script src="js/login.js?v=auth-pages-1" defer></script>

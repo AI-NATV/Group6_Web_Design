@@ -388,6 +388,26 @@ body > .builder-page {
   gap: 10px;
 }
 
+.upload-controls > .field-error {
+  flex-basis: 100%;
+}
+
+.required-indicator {
+  margin-left: .2em;
+  color: var(--bad);
+}
+
+.field-error {
+  display: block;
+  color: var(--bad);
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+
 .data-layout {
   display: grid;
   grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
@@ -1597,6 +1617,14 @@ td select {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.feedback-field {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: .86rem;
+  font-weight: 700;
 }
 
 .feedback-form input,
